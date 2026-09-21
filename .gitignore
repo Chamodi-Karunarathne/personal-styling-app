@@ -48,3 +48,5 @@ pnpm-debug.log*
 # ==============================
 *.tmp
 *.temp
+# Neon local CLI state
+.neon
