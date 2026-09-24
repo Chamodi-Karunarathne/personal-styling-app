@@ -1,0 +1,94 @@
+.shell {
+  position: relative;
+  overflow: clip;
+}
+
+.formArea {
+  width: 100%;
+  /* Reserve space for the taller Register form on short viewports. */
+  min-height: 44rem;
+}
+
+.formContent[data-leaving="true"] {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.imagePanel {
+  display: none;
+}
+
+.loginImage,
+.loginAsset {
+  opacity: 0;
+}
+
+.shell[data-image-screen="login"] .loginImage,
+.loginAsset[data-loaded="true"] {
+  opacity: 1;
+}
+
+@keyframes form-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 768px) {
+  .formArea {
+    width: 50%;
+    min-height: 49rem;
+  }
+
+  .shell[data-screen="login"] .formArea {
+    transform: translateX(100%);
+  }
+
+  .imagePanel {
+    display: block;
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    z-index: 1;
+    width: 50%;
+    transform: translateX(100%);
+  }
+
+  .shell[data-image-screen="login"] .imagePanel {
+    transform: translateX(0);
+  }
+}
+
+@media (min-width: 1024px) {
+  .formArea {
+    min-height: 47rem;
+  }
+}
+
+/* Motion is opt-in: reduced-motion users get the final state immediately. */
+@media (prefers-reduced-motion: no-preference) {
+  .formContent {
+    transition: opacity 180ms ease, transform 180ms ease;
+  }
+
+  .formContent[data-arriving="true"]:not([data-leaving="true"]) {
+    animation: form-arrive 350ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .imagePanel {
+    transition: transform 650ms cubic-bezier(0.65, 0, 0.35, 1);
+  }
+
+  .loginImage {
+    transition: opacity 650ms cubic-bezier(0.65, 0, 0.35, 1);
+  }
+
+  .loginAsset {
+    transition: opacity 180ms ease;
+  }
+}
