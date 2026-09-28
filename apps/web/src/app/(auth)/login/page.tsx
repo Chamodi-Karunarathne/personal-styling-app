@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { AuthField } from "@/components/auth/auth-field";
 import { AuthLink } from "@/components/auth/auth-link";
 import { SocialAuthButtons } from "@/components/auth/social-auth-buttons";
@@ -43,13 +42,12 @@ export default function LoginPage() {
           placeholder="Password"
         />
         <div className="text-right">
-          <Link
+          <AuthLink
             href="/forgot-password"
-            prefetch={false}
             className="rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
           >
             Forgot password?
-          </Link>
+          </AuthLink>
         </div>
         <Button
           type="button"

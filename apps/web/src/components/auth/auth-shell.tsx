@@ -12,7 +12,13 @@ import {
 } from "react";
 import styles from "./auth-shell.module.css";
 
-export type AuthPath = "/register" | "/login";
+export type AuthPath = "/register" | "/login" | "/forgot-password";
+
+function getAuthScreen(pathname: string) {
+  return pathname === "/login" || pathname === "/forgot-password"
+    ? "login"
+    : "register";
+}
 
 const AuthTransitionContext = createContext<((href: AuthPath) => void) | null>(null);
 
@@ -82,8 +88,8 @@ export function AuthShell({
     <AuthTransitionContext.Provider value={navigate}>
       <main
         className={`${styles.shell} grid min-h-screen w-full flex-1 bg-card text-card-foreground`}
-        data-screen={pathname === "/login" ? "login" : "register"}
-        data-image-screen={(destination ?? pathname) === "/login" ? "login" : "register"}
+        data-screen={getAuthScreen(pathname)}
+        data-image-screen={getAuthScreen(destination ?? pathname)}
       >
         <div
           ref={formArea}
