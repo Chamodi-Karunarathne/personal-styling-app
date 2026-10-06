@@ -40,7 +40,7 @@ export function StyleCategories() {
           id="categories-heading"
           className="font-heading text-3xl leading-tight font-medium tracking-tight sm:text-4xl"
         >
-          Every detail. <span className="text-primary italic">Entirely you.</span>
+          Every detail. <span className="text-primary italic dark:text-primary-foreground">Entirely you.</span>
         </h2>
         <p className="max-w-xs text-sm leading-6 text-muted-foreground">
           From the first layer to the final touch.

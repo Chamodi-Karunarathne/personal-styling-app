@@ -8,12 +8,13 @@ type AuthLinkProps = Omit<ComponentProps<typeof Link>, "href" | "onNavigate"> & 
   href: AuthPath;
 };
 
-export function AuthLink({ href, ...props }: AuthLinkProps) {
+export function AuthLink({ href, className, ...props }: AuthLinkProps) {
   const navigate = useAuthTransition();
 
   return (
     <Link
       {...props}
+      className={`${className ?? ""} dark:text-primary-foreground dark:focus-visible:outline-primary-foreground`}
       href={href}
       scroll={false}
       onNavigate={(event) => {

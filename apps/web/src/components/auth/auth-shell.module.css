@@ -16,6 +16,7 @@
 
 .imagePanel {
   display: none;
+  position: relative;
 }
 
 .loginImage,
