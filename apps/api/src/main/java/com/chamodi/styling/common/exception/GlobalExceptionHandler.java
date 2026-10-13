@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -23,6 +24,11 @@ import com.chamodi.styling.common.dto.ApiErrorResponse;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+
+	@ExceptionHandler(BadCredentialsException.class)
+	public ResponseEntity<Object> handleInvalidCredentials(BadCredentialsException exception, WebRequest request) {
+		return error(HttpStatus.UNAUTHORIZED, "Invalid email or password", Map.of(), request);
+	}
 
 	@ExceptionHandler(EmailAlreadyExistsException.class)
 	public ResponseEntity<Object> handleDuplicateEmail(EmailAlreadyExistsException exception, WebRequest request) {

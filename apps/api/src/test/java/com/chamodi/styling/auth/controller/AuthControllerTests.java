@@ -24,15 +24,25 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+
+import jakarta.servlet.http.Cookie;
 
 import com.chamodi.styling.auth.dto.RegisterRequest;
 import com.chamodi.styling.auth.entity.User;
 import com.chamodi.styling.auth.exception.EmailAlreadyExistsException;
 import com.chamodi.styling.auth.service.AuthService;
+import com.chamodi.styling.auth.config.SecurityConfig;
+import com.chamodi.styling.auth.config.PasswordEncoderConfig;
+import com.chamodi.styling.auth.repository.UserRepository;
+import com.chamodi.styling.auth.security.ApiSecurityErrorHandler;
+import com.chamodi.styling.auth.security.RepositoryUserDetailsService;
 import com.chamodi.styling.common.exception.GlobalExceptionHandler;
 
 @WebMvcTest(AuthController.class)
-@Import(GlobalExceptionHandler.class)
+@Import({ GlobalExceptionHandler.class, SecurityConfig.class, PasswordEncoderConfig.class,
+		RepositoryUserDetailsService.class, ApiSecurityErrorHandler.class })
 @ExtendWith(OutputCaptureExtension.class)
 class AuthControllerTests {
 
@@ -47,6 +57,9 @@ class AuthControllerTests {
 	@MockitoBean
 	private AuthService authService;
 
+	@MockitoBean
+	private UserRepository userRepository;
+
 	@Test
 	void createsAccountAndReturnsOnlySafeFields() throws Exception {
 		User savedUser = mock(User.class);
@@ -55,7 +68,7 @@ class AuthControllerTests {
 		when(savedUser.getEmail()).thenReturn("user@example.com");
 		when(authService.register(any(RegisterRequest.class))).thenReturn(savedUser);
 
-		mockMvc.perform(post(REGISTER_PATH).contentType(MediaType.APPLICATION_JSON).content(VALID_REQUEST))
+		mockMvc.perform(withCsrf(post(REGISTER_PATH)).contentType(MediaType.APPLICATION_JSON).content(VALID_REQUEST))
 				.andExpect(status().isCreated())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
 				.andExpect(jsonPath("$", aMapWithSize(3)))
@@ -93,7 +106,7 @@ class AuthControllerTests {
 	void returnsSafeConflictForDuplicateEmail() throws Exception {
 		when(authService.register(any(RegisterRequest.class))).thenThrow(new EmailAlreadyExistsException());
 
-		mockMvc.perform(post(REGISTER_PATH).contentType(MediaType.APPLICATION_JSON).content(VALID_REQUEST))
+		mockMvc.perform(withCsrf(post(REGISTER_PATH)).contentType(MediaType.APPLICATION_JSON).content(VALID_REQUEST))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$", aMapWithSize(6)))
 				.andExpect(jsonPath("$.timestamp").isString())
@@ -108,7 +121,7 @@ class AuthControllerTests {
 
 	@Test
 	void rejectsMalformedJsonWithoutExposingParserDetails() throws Exception {
-		mockMvc.perform(post(REGISTER_PATH).contentType(MediaType.APPLICATION_JSON).content("{invalid"))
+		mockMvc.perform(withCsrf(post(REGISTER_PATH)).contentType(MediaType.APPLICATION_JSON).content("{invalid"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$", aMapWithSize(6)))
 				.andExpect(jsonPath("$.status").value(400))
@@ -121,7 +134,7 @@ class AuthControllerTests {
 		when(authService.register(any(RegisterRequest.class)))
 				.thenThrow(new DataIntegrityViolationException("Internal SQL and constraint details"));
 
-		mockMvc.perform(post(REGISTER_PATH).contentType(MediaType.APPLICATION_JSON).content(VALID_REQUEST))
+		mockMvc.perform(withCsrf(post(REGISTER_PATH)).contentType(MediaType.APPLICATION_JSON).content(VALID_REQUEST))
 				.andExpect(status().isInternalServerError())
 				.andExpect(jsonPath("$", aMapWithSize(6)))
 				.andExpect(jsonPath("$.status").value(500))
@@ -144,7 +157,7 @@ class AuthControllerTests {
 		String password = "SensitiveLoggingProbe123";
 		when(authService.register(any(RegisterRequest.class))).thenThrow(new EmailAlreadyExistsException());
 
-		mockMvc.perform(post(REGISTER_PATH).contentType(MediaType.APPLICATION_JSON)
+		mockMvc.perform(withCsrf(post(REGISTER_PATH)).contentType(MediaType.APPLICATION_JSON)
 				.content(VALID_REQUEST.replace("ExamplePassword123", password)))
 				.andExpect(status().isConflict());
 
@@ -161,7 +174,7 @@ class AuthControllerTests {
 	}
 
 	private void assertValidationError(String request, String field, String message) throws Exception {
-		mockMvc.perform(post(REGISTER_PATH).contentType(MediaType.APPLICATION_JSON).content(request))
+		mockMvc.perform(withCsrf(post(REGISTER_PATH)).contentType(MediaType.APPLICATION_JSON).content(request))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$", aMapWithSize(6)))
 				.andExpect(jsonPath("$.timestamp").isString())
@@ -171,6 +184,12 @@ class AuthControllerTests {
 				.andExpect(jsonPath("$.path").value(REGISTER_PATH))
 				.andExpect(jsonPath("$.fieldErrors." + field).value(message));
 		verifyNoInteractions(authService);
+	}
+
+	private MockHttpServletRequestBuilder withCsrf(MockHttpServletRequestBuilder request) throws Exception {
+		MvcResult bootstrap = mockMvc.perform(get("/api/auth/csrf")).andExpect(status().isOk()).andReturn();
+		Cookie token = bootstrap.getResponse().getCookie("XSRF-TOKEN");
+		return request.cookie(token).header("X-XSRF-TOKEN", token.getValue());
 	}
 
 }
