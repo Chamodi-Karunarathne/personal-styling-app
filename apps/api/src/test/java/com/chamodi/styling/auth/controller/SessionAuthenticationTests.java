@@ -202,6 +202,52 @@ class SessionAuthenticationTests {
 	}
 
 	@Test
+	void registrationAcceptsSeventyTwoAsciiPasswordBytes() throws Exception {
+		assertRegistrationAcceptsPassword("a".repeat(72));
+	}
+
+	@Test
+	void registrationAcceptsExactlySeventyTwoUtf8BytesIncludingEmoji() throws Exception {
+		assertRegistrationAcceptsPassword("a".repeat(68) + "\uD83D\uDE42");
+	}
+
+	@Test
+	void loginAcceptsSeventyTwoAsciiPasswordBytesWithExistingBcryptHash() throws Exception {
+		assertLoginAcceptsPassword("a".repeat(72));
+	}
+
+	@Test
+	void loginAcceptsExactlySeventyTwoUtf8BytesIncludingEmojiWithExistingBcryptHash() throws Exception {
+		assertLoginAcceptsPassword("a".repeat(68) + "\uD83D\uDE42");
+	}
+
+	@Test
+	void registrationRejectsSeventyThreeAsciiPasswordBytesBeforeServiceCall() throws Exception {
+		assertPasswordByteLimitFailure(REGISTER_PATH, "a".repeat(73));
+	}
+
+	@Test
+	void registrationRejectsSeventyThreeUtf8BytesDespiteFewerThanSeventyTwoCharacters(CapturedOutput output)
+			throws Exception {
+		String password = "a".repeat(69) + "\uD83D\uDE42";
+		assertPasswordByteLimitFailure(REGISTER_PATH, password);
+		assertFalse(output.getAll().contains(password));
+	}
+
+	@Test
+	void loginRejectsSeventyThreeAsciiPasswordBytesBeforeAccountLookup() throws Exception {
+		assertPasswordByteLimitFailure(LOGIN_PATH, "a".repeat(73));
+	}
+
+	@Test
+	void loginRejectsSuffixBeyondUnicodeBcryptByteBoundaryBeforeAccountLookup(CapturedOutput output) throws Exception {
+		String acceptedPassword = "a".repeat(68) + "\uD83D\uDE42";
+		String passwordWithSuffix = acceptedPassword + "x";
+		assertPasswordByteLimitFailure(LOGIN_PATH, passwordWithSuffix);
+		assertFalse(output.getAll().contains(passwordWithSuffix));
+	}
+
+	@Test
 	void unauthenticatedMeReturnsSafeJsonWithoutLoginRedirect() throws Exception {
 		assertError(mockMvc.perform(get(ME_PATH)), 401, "Authentication is required", ME_PATH)
 				.andExpect(header().doesNotExist(HttpHeaders.LOCATION));
@@ -374,6 +420,46 @@ class SessionAuthenticationTests {
 		assertFalse(output.getAll().contains(PASSWORD));
 		assertFalse(output.getAll().contains(passwordHash));
 		assertFalse(output.getAll().contains("JSESSIONID=" + sessionId));
+	}
+
+	private void assertRegistrationAcceptsPassword(String password) throws Exception {
+		User account = account();
+		when(authService.register(any(RegisterRequest.class))).thenReturn(account);
+		mockMvc.perform(withCsrf(post(REGISTER_PATH), csrf(null)).contentType(MediaType.APPLICATION_JSON)
+				.content(REGISTER_JSON.replace("ExamplePassword123", password)))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$", aMapWithSize(3)))
+				.andExpect(jsonPath("$.password").doesNotExist())
+				.andExpect(jsonPath("$.passwordHash").doesNotExist());
+		verify(authService).register(new RegisterRequest("Example User", EMAIL, password));
+		verifyNoInteractions(userRepository);
+	}
+
+	private void assertLoginAcceptsPassword(String password) throws Exception {
+		passwordHash = passwordEncoder.encode(password);
+		knownAccount();
+		performLogin(EMAIL, password, null, csrf(null))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$", aMapWithSize(3)))
+				.andExpect(jsonPath("$.email").value(EMAIL))
+				.andExpect(jsonPath("$.password").doesNotExist())
+				.andExpect(jsonPath("$.passwordHash").doesNotExist());
+		verify(userRepository).findByEmail(EMAIL);
+		verifyNoInteractions(authService);
+	}
+
+	private void assertPasswordByteLimitFailure(String path, String password) throws Exception {
+		String body = REGISTER_PATH.equals(path)
+				? REGISTER_JSON.replace("ExamplePassword123", password) : loginJson(EMAIL, password);
+		mockMvc.perform(withCsrf(post(path), csrf(null)).contentType(MediaType.APPLICATION_JSON).content(body))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$", aMapWithSize(6)))
+				.andExpect(jsonPath("$.message").value("Validation failed"))
+				.andExpect(jsonPath("$.path").value(path))
+				.andExpect(jsonPath("$.fieldErrors.password").value("Password must be at most 72 UTF-8 bytes"))
+				.andExpect(jsonPath("$.password").doesNotExist())
+				.andExpect(jsonPath("$.passwordHash").doesNotExist());
+		verifyNoInteractions(userRepository, authService);
 	}
 
 	private CsrfToken csrf(MockHttpSession session) throws Exception {

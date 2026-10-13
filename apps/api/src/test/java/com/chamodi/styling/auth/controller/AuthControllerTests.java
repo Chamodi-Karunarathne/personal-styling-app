@@ -94,7 +94,7 @@ class AuthControllerTests {
 	@Test
 	void rejectsShortPasswordBeforeCallingService() throws Exception {
 		assertValidationError(VALID_REQUEST.replace("ExamplePassword123", "short"),
-				"password", "Password must be between 8 and 72 characters");
+				"password", "Password must be at least 8 characters");
 	}
 
 	@Test
@@ -168,7 +168,7 @@ class AuthControllerTests {
 	void doesNotLogRejectedPasswordFromValidationFailure(CapturedOutput output) throws Exception {
 		String password = "pW!9";
 		assertValidationError(VALID_REQUEST.replace("ExamplePassword123", password),
-				"password", "Password must be between 8 and 72 characters");
+				"password", "Password must be at least 8 characters");
 
 		assertFalse(output.getAll().contains(password));
 	}

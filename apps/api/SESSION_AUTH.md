@@ -20,6 +20,11 @@ Missing authentication returns 401 with `Authentication is required`. Missing or
 invalid CSRF returns 403. Unrelated server/database failures retain safe 500 responses.
 Errors use the existing `ApiErrorResponse` shape; they contain no exception or SQL details.
 
+Registration keeps its minimum of eight characters. Both registration and login
+reject passwords exceeding 72 UTF-8 bytes with a 400 field-validation response,
+before BCrypt runs. This is a byte limit, so multibyte characters reach it sooner
+than ASCII characters. Passwords are never trimmed, normalized, or truncated.
+
 Other `/api/**` routes require authentication. Non-API routes are denied. Actual
 servlet error dispatches are permitted so framework errors can finish rendering.
 Unsupported methods on the public register/login URLs reach MVC's 405 handling.

@@ -1,6 +1,10 @@
 package com.chamodi.styling.auth.dto;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
+import java.nio.charset.StandardCharsets;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -70,16 +74,66 @@ class RegisterRequestTests {
 
 	@Test
 	void rejectsPasswordsOutsideLengthLimits() {
-		for (int length : new int[] { 7, 73 }) {
-			assertViolation(new RegisterRequest("Example User", "user@example.com", "a".repeat(length)),
-					"password", "Password must be between 8 and 72 characters");
-		}
+		assertViolation(new RegisterRequest("Example User", "user@example.com", "a".repeat(7)),
+				"password", "Password must be at least 8 characters");
+		assertViolation(new RegisterRequest("Example User", "user@example.com", "a".repeat(73)),
+				"password", "Password must be at most 72 UTF-8 bytes");
 	}
 
 	@Test
 	void rejectsWhitespacePasswordEvenWithinLengthLimits() {
 		assertViolation(new RegisterRequest("Example User", "user@example.com", " ".repeat(8)),
 				"password", "Password is required");
+	}
+
+	@Test
+	void acceptsAccentedPasswordAtExactly72Bytes() {
+		String password = "\u00e9".repeat(36);
+		assertEquals(72, password.getBytes(StandardCharsets.UTF_8).length);
+		assertTrue(validator.validate(new RegisterRequest("Example User", "user@example.com", password)).isEmpty());
+	}
+
+	@Test
+	void acceptsEmojiPasswordAtExactly72Bytes() {
+		String password = "a".repeat(68) + "\uD83D\uDE00";
+		assertEquals(72, password.getBytes(StandardCharsets.UTF_8).length);
+		assertTrue(validator.validate(new RegisterRequest("Example User", "user@example.com", password)).isEmpty());
+	}
+
+	@Test
+	void rejectsEmojiPasswordAbove72BytesEvenWhenCharacterLengthFits() {
+		String password = "a".repeat(69) + "\uD83D\uDE00";
+		assertEquals(71, password.length());
+		assertEquals(73, password.getBytes(StandardCharsets.UTF_8).length);
+		assertViolation(new RegisterRequest("Example User", "user@example.com", password),
+				"password", "Password must be at most 72 UTF-8 bytes");
+	}
+
+	@Test
+	void rejectsAccentedPasswordAbove72Bytes() {
+		String password = "\u00e9".repeat(37);
+		assertEquals(74, password.getBytes(StandardCharsets.UTF_8).length);
+		assertViolation(new RegisterRequest("Example User", "user@example.com", password),
+				"password", "Password must be at most 72 UTF-8 bytes");
+	}
+
+	@Test
+	void validationPreservesUnicodeAndSurroundingPasswordWhitespace() {
+		String password = "  e\u0301\u00e9Password123  ";
+		RegisterRequest request = new RegisterRequest("Example User", "user@example.com", password);
+
+		assertTrue(validator.validate(request).isEmpty());
+		assertEquals(password, request.password());
+	}
+
+	@Test
+	void stringRepresentationRedactsPasswordWithoutChangingRequestContents() {
+		String password = "SensitiveRegistrationProbe123";
+		RegisterRequest request = new RegisterRequest("Example User", "user@example.com", password);
+
+		assertFalse(request.toString().contains(password));
+		assertTrue(request.toString().contains("[REDACTED]"));
+		assertEquals(password, request.password());
 	}
 
 	private static String emailWithLength(int length) {

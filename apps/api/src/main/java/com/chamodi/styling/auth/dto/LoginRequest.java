@@ -1,5 +1,7 @@
 package com.chamodi.styling.auth.dto;
 
+import com.chamodi.styling.auth.validation.Utf8ByteLength;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -11,7 +13,7 @@ public record LoginRequest(
 		String email,
 
 		@NotBlank(message = "Password is required")
-		@Size(max = 72, message = "Password must be at most 72 characters")
+		@Utf8ByteLength(max = 72, message = "Password must be at most {max} UTF-8 bytes")
 		String password) {
 
 	public LoginRequest {
