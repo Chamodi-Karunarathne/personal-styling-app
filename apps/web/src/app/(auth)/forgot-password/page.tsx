@@ -36,10 +36,18 @@ export default function ForgotPasswordPage() {
         />
         <Button
           type="button"
+          disabled
+          aria-describedby="password-reset-unavailable"
           className="mt-2 h-12 w-full rounded-lg focus-visible:border-primary focus-visible:ring-primary/40"
         >
           Send Reset Link
         </Button>
+        <p
+          id="password-reset-unavailable"
+          className="text-center text-xs leading-relaxed text-muted-foreground"
+        >
+          Password reset is not available yet.
+        </p>
       </form>
 
       <div className="mt-8 text-center">
