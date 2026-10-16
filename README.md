@@ -4,7 +4,7 @@ A full-stack application being developed to help people organize their clothing 
 
 This individual software engineering portfolio project covers requirements engineering, architecture, Java backend development, React frontend development, testing, and planned AI-assisted explanations.
 
-**Current status:** Phase 0 (setup) and Phase 1 (authentication UI, backend, and frontend integration) are complete. Phase 2 has not started. Wardrobe management and outfit recommendations are not implemented yet.
+**Current status:** Phase 0 (setup), Phase 1 (authentication), and Phase 2 (onboarding and styling profiles) are implemented. Wardrobe management and outfit recommendations are not implemented yet.
 
 ## Problem and objectives
 
@@ -27,12 +27,14 @@ The application aims to:
 - Spring Security session login, current-account lookup, and logout, with safe account responses and centralized JSON errors.
 - Session ID rotation, CSRF bootstrap/refresh, exact-origin credentialed CORS, and environment-aware cookie configuration.
 - Typed frontend Fetch integration, session restoration, loading/error states, and protection against stale asynchronous authentication results.
-- A minimal protected `/dashboard` showing account information and a functional Sign out button.
-- Backend unit/HTTP tests and frontend helper/browser tests covering authentication and failure paths.
+- A minimal protected `/dashboard` showing account information, Sign out, and Start/Resume/Edit preference links.
+- Accessible four-step `/onboarding` with optional answers, explicit No preference, draft saving, resume, skip, and completion.
+- `/profile` preference editing with read-only account identity, server-supported choices, and conflict/error recovery.
+- Owner-bound relational profile persistence, optimistic version checks, and authenticated profile APIs.
+- Backend unit/MVC/PostgreSQL/HTTP tests, frontend helper/browser tests, and a separate opt-in live browser suite.
 
 ### Planned
 
-- Onboarding and styling preferences, including comfort and modesty choices.
 - Digital wardrobe entry, editing, availability, search, and image handling.
 - Occasion planning with location, date/time, weather, activities, and transportation context.
 - Context-aware outfit composition, deterministic ranking, and grounded explanations.
@@ -63,7 +65,7 @@ flowchart LR
     api -->|JPA / Hibernate| database[("Neon PostgreSQL")]
 ```
 
-The frontend calls Spring Boot directly; there is no Next.js API proxy or second authentication system. The backend validates requests, verifies credentials, authorizes API access, and persists account data. Frontend route guards control navigation; Spring Security is the actual authorization boundary.
+The frontend calls Spring Boot directly; there is no Next.js API proxy or second authentication system. The backend validates requests, verifies credentials, authorizes API access, and persists account/profile data. Frontend route guards control navigation; Spring Security is the actual authorization boundary.
 
 Sessions are stored in backend memory, referenced by an HttpOnly cookie. The frontend restores identity through `/api/auth/me` and keeps its application authentication state in memory rather than localStorage. CSRF tokens are obtained from `/api/auth/csrf`, sent in `X-XSRF-TOKEN`, and refreshed after login/logout. Every API fetch includes `credentials: 'include'`.
 
@@ -74,8 +76,13 @@ Sessions are stored in backend memory, referenced by an HttpOnly cookie. The fro
 | `POST /api/auth/login` | Authenticate and establish a session |
 | `GET /api/auth/me` | Return the authenticated account's safe identity |
 | `POST /api/auth/logout` | Invalidate the session; return 204 |
+| `GET /api/profile/options` | Authenticated preference catalog |
+| `GET /api/profile/me` | Current profile or NOT_STARTED; GET does not insert |
+| `PUT /api/profile/me` | Atomic full snapshot SAVE/SKIP/COMPLETE with expected version |
 
 Authentication POSTs require CSRF. Full contracts and PowerShell examples are in the [backend session guide](apps/api/SESSION_AUTH.md).
+
+Profile PUT also requires CSRF. Auth and profile clients share one request queue/token cache. Saves preserve unanswered versus explicit No preference and reject stale versions. See the [profile API](docs/api/styling-profile.md) for validation, state transitions, ownership, and uncertain-write handling. No recommendation engine applies these preferences yet.
 
 ## Project structure
 
@@ -86,6 +93,7 @@ Authentication POSTs require CSRF. Full contracts and PowerShell examples are in
 │   │   ├── .mvn/wrapper/             # Maven distribution configuration
 │   │   ├── src/main/java/com/chamodi/styling/
 │   │   │   ├── auth/                 # DTOs, controller, service, persistence, security
+│   │   │   ├── profile/              # Catalog, onboarding snapshots, persistence, API
 │   │   │   └── common/               # Shared error response and exception handling
 │   │   ├── src/main/resources/        # Development and production configuration
 │   │   ├── src/test/java/            # Backend tests
@@ -143,7 +151,7 @@ $env:DB_PASSWORD = '<database-password>'
 .\mvnw.cmd spring-boot:run
 ```
 
-The API uses `http://localhost:8080` by default. Hibernate currently uses `ddl-auto=update` for development and manages the `app_users` table. Use a development database; do not treat this setting as a production migration strategy.
+The API uses `http://localhost:8080` by default. Hibernate uses `ddl-auto=update` for development and manages `app_users`, `styling_profiles`, `styling_profile_answers`, and `styling_profile_choices`. Existing user constraints remain intact. Use a development database; this is not a production migration strategy.
 
 Supply real secrets through your local environment or IDE configuration. Spring Boot is not configured to automatically load a root `.env.local` file; those variables must reach its process environment. Do not commit credentials or put them in frontend-public variables.
 
@@ -162,7 +170,7 @@ Set-Location apps/web
 pnpm dev
 ```
 
-Open `http://localhost:3000`. Register an account, then sign in to reach the minimal dashboard. Password reset and social sign-in remain unavailable.
+Open `http://localhost:3000`. Register, sign in, then Start setup from Dashboard or edit `/profile`. Incomplete onboarding never blocks Dashboard. Password reset and social sign-in remain unavailable.
 
 Use `localhost` consistently. The default backend CORS policy allows exactly `http://localhost:3000`; `127.0.0.1` or port 3001 will not match it. The API base URL must be an HTTP(S) origin without a path, query, credentials, or fragment. Next.js embeds this public setting at build time, so restart development or rebuild after changing it.
 
@@ -212,7 +220,7 @@ pnpm exec playwright install chromium
 pnpm test
 ```
 
-Playwright starts the production build on port 3000; stop an existing frontend server before running browser tests. API responses are mocked, so these tests require neither Spring Boot nor Neon. Desktop/mobile Chromium checks cover authentication, errors, session expiration, refresh, navigation, animation, and responsive behavior.
+Playwright starts the production build on port 3000 by default. Set `$env:PLAYWRIGHT_PORT='3100'` to use another free port instead of stopping an existing server. Normal API responses are mocked, so this suite needs neither Spring Boot nor Neon. Desktop/mobile Chromium checks cover auth, onboarding/profile saves, errors, conflicts, session expiration, refresh, animation, and responsive behavior.
 
 For helper tests without a browser or frontend server:
 
@@ -221,6 +229,8 @@ pnpm test:unit
 ```
 
 Mocked browser tests do not prove live cookie/CORS behavior. Use the separate [browser integration walkthrough](apps/web/README.md#manual-verification-with-spring-boot-and-neon) and [backend manual verification](apps/api/SESSION_AUTH.md#manual-verification-in-powershell) when testing against the running API and development database.
+
+The [Phase 2 verification guide](docs/testing/phase-2-verification.md) documents isolated PostgreSQL test opt-in, the complete backend selection, the separate live browser config, actual results, and pending Neon checks. Live tests create synthetic rows only in a deliberately selected disposable database.
 
 ## Progress and roadmap
 
@@ -231,9 +241,9 @@ Mocked browser tests do not prove live cookie/CORS behavior. Use the separate [b
 | Phase 1B: backend registration and session authentication | Complete |
 | Phase 1C: frontend–backend authentication integration | Complete |
 | Whole-application SRS and traceability baseline | Documented; future requirements and open decisions await review |
-| Phase 2: product functionality beyond authentication | Not started; scope must follow reviewed requirements |
+| Phase 2: onboarding and styling profile management | Implemented; local PostgreSQL/live browser verified; Neon manual checks pending |
 
-The proposed product path is styling preferences, a digital wardrobe, request context/weather, deterministic outfit recommendations and explanations, then saved outfits and feedback. Priorities and release boundaries remain subject to the SRS decision log rather than assumed delivery dates.
+The next product path is a digital wardrobe, request context/weather, deterministic outfit recommendations and explanations, then saved outfits and feedback. Preference capture/editing is delivered; recommendation consumption is still planned. Priorities and release boundaries remain subject to the SRS decision log rather than assumed delivery dates.
 
 ## Documentation
 
@@ -242,8 +252,11 @@ The proposed product path is styling preferences, a digital wardrobe, request co
 - [Requirements traceability matrix](docs/requirements/requirements-traceability.md)
 - [Frontend integration, setup, and testing](apps/web/README.md)
 - [Backend session contracts, security configuration, and testing](apps/api/SESSION_AUTH.md)
+- [Styling profile contracts](docs/api/styling-profile.md)
+- [Phase 2 verification and manual walkthrough](docs/testing/phase-2-verification.md)
+- [Development learning journal](docs/learning/LEARNINGS.md)
 
-The SRS distinguishes implemented, planned, and clarification-dependent requirements. Current code and the frontend guide reflect completed frontend integration; the backend guide's final historical scope note predates that work.
+The SRS distinguishes implemented, planned, and clarification-dependent requirements. Its Phase 2 update preserves stable IDs and records the approved onboarding contract while leaving future engine/provider decisions open.
 
 ## Future direction
 

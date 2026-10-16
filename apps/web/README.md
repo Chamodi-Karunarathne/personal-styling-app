@@ -78,9 +78,9 @@ pnpm test
 pnpm test:unit
 ```
 
-Browser tests start the production build at port 3000; stop an existing frontend
-server first. All API responses/accounts/passwords/cookies/tokens are mocked and
-synthetic. Tests never connect to Spring Boot or Neon. Chromium desktop/mobile
+Normal browser tests start the production build at port 3000; use
+`$env:PLAYWRIGHT_PORT='3100'` for another free port. Normal API responses and
+accounts/cookies/tokens are mocked and synthetic; these tests do not connect to Spring Boot or Neon. Chromium desktop/mobile
 projects cover form flows, errors, CSRF, loading/retry, refresh, expiration, cancellation,
 logout, animation, browser history, reduced motion, and responsive overflow checks.
 Helper tests cover UTF-8 boundaries, serialization, and bounded retries.
@@ -101,7 +101,7 @@ you control and a development-only password; never reuse real credentials.
 3. Repeat registration with the same email: expect 409. Try invalid fields and a
    password exceeding 72 UTF-8 bytes; failures must never display success.
 4. Try an incorrect login password: expect generic 401. Sign in correctly: expect
-   200, a subsequent CSRF bootstrap, and only ID/name/email on `/dashboard`.
+   200, a subsequent CSRF bootstrap, and safe account details/setup entry on `/dashboard`.
 5. Refresh `/dashboard` and open another tab. `/me` should return 200 and restore
    account information after verification.
 6. Confirm POSTs have `X-XSRF-TOKEN` and requests include cookies. `JSESSIONID`
@@ -138,5 +138,18 @@ Secure cookies are forced. SameSite=Lax supports same-site HTTPS frontend/API ho
 unrelated sites require a separately considered cookie/proxy arrangement. See
 `../api/SESSION_AUTH.md` for authoritative backend configuration.
 
-No additional authentication system, JWT, OAuth, password reset backend, full dashboard,
-wardrobe, planner, or other product features are implemented.
+## Phase 2 styling profiles
+
+`/onboarding` and `/profile` reuse the protected layout and existing session provider.
+Dashboard offers Start setup, Resume setup, or Edit preferences without blocking access.
+Auth and profiles use one credentialed transport/CSRF cache. The workspace loads the
+server catalog and saved snapshot, preserves failed edits, rejects stale versions,
+and reconciles uncertain writes with GET rather than automatic PUT replay.
+
+See the [profile API](../../docs/api/styling-profile.md) and
+[Phase 2 verification](../../docs/testing/phase-2-verification.md) for state semantics,
+isolated PostgreSQL testing, separate opt-in live browser tests, actual results, and
+the pending manual Neon walkthrough. The live config is separate from `pnpm test`.
+
+No additional auth system, JWT, OAuth, password-reset backend, full dashboard,
+wardrobe, planner, or recommendation engine is implemented.

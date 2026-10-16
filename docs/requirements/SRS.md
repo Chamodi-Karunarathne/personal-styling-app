@@ -4,10 +4,10 @@ Personal Styling & Outfit Recommendation Application
 
 | Document control | Value |
 | --- | --- |
-| Baseline | 1.0 — full-product requirements baseline after Phase 1 |
-| Date | 2026-10-16 |
-| Evidence snapshot | Repository main at fc2931b; Phase 0 and Phase 1 completed, Phase 2 not started |
-| Document state | Draft for product-owner review; future scope, priorities, and decisions are not approved commitments |
+| Baseline | 1.1 — Phase 2 onboarding/profile delivery; full-product IDs retained |
+| Date | 2026-10-17 |
+| Evidence snapshot | feature/phase-2-user-onboarding through 21d48f5; Phase 0, Phase 1, and Phase 2 delivered |
+| Document state | Phase 2 decisions owner-approved; future product scope/decisions remain proposals |
 | Maintainer / decision owner | Individual project developer / product owner |
 | Related documents | [Documentation index](../README.md); [requirements traceability](requirements-traceability.md) |
 
@@ -81,9 +81,9 @@ The primary audience is the project owner/developer. Reviewers, portfolio assess
 
 ### 1.6 Evidence and precedence
 
-Current source, dependency manifests, and test definitions establish the implementation snapshot. [Frontend integration guide][webdoc] and [Backend session guide][apidoc] explain integration/testing. The root [Product backlog][roadmap] is an informal roadmap, not a confirmed set of stakeholder decisions. There was no existing root README, SRS, or requirements directory when inspected.
+Current source, dependency manifests, and test definitions establish the implementation snapshot. [Frontend integration guide][webdoc] and [Backend session guide][apidoc] explain integration/testing. The root [Product backlog][roadmap] is an informal roadmap, not a confirmed set of stakeholder decisions. At the baseline 1.0 inspection, no root README, SRS, or requirements directory existed; subsequent milestones created them.
 
-The final scope paragraph of the older backend session guide says frontend integration is not implemented. That describes its earlier backend milestone and is superseded by current frontend source and the Phase 1C guide. No existing document is modified by this baseline. Requirements derived from informal future epics remain proposed.
+Baseline 1.0 recorded the Phase 1 source snapshot without rerunning tests. Revision 1.1 records the owner-approved Phase 2 implementation and actual verification in the [Phase 2 guide](../testing/phase-2-verification.md). The backend guide now links current frontend/profile documentation; informal future epics remain proposed.
 
 ## 2. Overall system description
 
@@ -103,9 +103,10 @@ The intended processing chain is: user-owned wardrobe + confirmed context and pr
 | Account creation | Validated request, normalized name/email, duplicate protection, BCrypt persistence, safe 201 response |
 | Authentication | Session login, current-account endpoint, logout, CSRF bootstrap/rotation, CORS/cookie configuration |
 | Frontend integration | Typed Fetch client, session restoration/reconciliation, loading/errors, client private-route gate |
-| Dashboard | Minimal safe account information and functional sign-out only |
+| Dashboard | Safe account information, sign-out, and non-blocking Start/Resume/Edit preference entry points |
 | Forgot Password / social | UI present but reset submission and Google/Apple actions are explicitly unavailable |
-| Future product modules | No onboarding, wardrobe, event, recommendation, saved-outfit, or feedback implementation |
+| Styling profile | Four-step optional onboarding; save/resume/skip/complete; profile editing; owner-bound versioned persistence and REST APIs |
+| Future product modules | No wardrobe, event, recommendation, saved-outfit, or feedback implementation |
 | Operational scope | Local/testable configuration; production profile exists, but production deployment and multi-instance continuity are not established |
 
 ### 2.3 User classes and characteristics
@@ -113,7 +114,7 @@ The intended processing chain is: user-owned wardrobe + confirmed context and pr
 | Class | Capabilities and needs |
 | --- | --- |
 | Visitor | Reads the landing page, creates an account, signs in; may encounter the unavailable recovery screen |
-| Authenticated individual | Currently views safe account details and signs out; future owner of preferences, wardrobe, plans, and feedback |
+| Authenticated individual | Views safe account details, signs out, and manages a styling profile; future owner of wardrobe, plans, and feedback |
 | Returning or expired-session user | Needs session restoration, meaningful loading/retry states, and clear sign-in recovery |
 | User with accessibility needs | May use keyboard, assistive technology, small screens, zoom, or reduced motion; avoid relying on animation or imagery alone |
 | Developer / maintainer | Operates local services, manages configuration, reviews tests, and evolves documented rules; not an in-application admin role |
@@ -128,13 +129,15 @@ Different fashion tastes, comfort/modesty choices, and wardrobes are user-suppli
 | /register | [Register page][register]: real account creation |
 | /login | [Login page][login]: real session login |
 | /forgot-password | [Forgot Password page][forgot]: UI-only unavailable recovery, back link to Login |
-| /dashboard | [Minimal dashboard][dashboard]: client-gated minimal account screen |
+| /dashboard | [Minimal dashboard][dashboard]: protected account and styling setup entry |
+| /onboarding | [Onboarding page][onboarding]: protected four-step save/resume flow |
+| /profile | [Profile page][profilePage]: protected preference editor; identity read-only |
 
-The (auth) and (app) App Router groups organize layouts without appearing in URLs. The wardrobe, planner, recommendations, saved, and profile directories have no page implementation and do not establish working routes. No onboarding page exists. Shared AuthShell/AuthLink/AuthField, SessionProvider/RequireAuth, the typed API client, theme, and Button are reusable foundations. Proposed modules must preserve the approved design without duplicating authentication architecture.
+The (auth) and (app) route groups organize layouts without appearing in URLs. Wardrobe, planner, recommendations, and saved have no implemented pages. AuthShell/AuthLink/AuthField, SessionProvider/RequireAuth, Button/theme, shared preference controls, and the credentialed session transport are reused. The approved authentication design and navigation remain intact.
 
 ### 2.5 Operating environment and dependencies
 
-Development uses Windows/PowerShell, Java 21 with Maven Wrapper, and the pnpm-based frontend workspace. The current frontend guide requires Node.js 20 or newer. Browser/API origins are separately configured; local defaults use localhost ports 3000 and 8080. The database is remote and requires server-side environment credentials. Automated isolated auth tests do not need Neon; the full application context and live persistence checks do.
+Development uses Windows/PowerShell, Java 21 with Maven Wrapper, Node.js 20.9.0 or newer, and pnpm. Local browser/API origins default to localhost:3000 and localhost:8080. Neon is the development database target; isolated tests can instead use a dedicated local PostgreSQL database. The Phase 2 opt-in integration tests require a guarded loopback phase2_test database and do not connect to Neon.
 
 Future wardrobe media, weather sourcing, AI calls, and notification delivery add availability, cost, privacy, and quota dependencies that are not yet selected.
 
@@ -142,11 +145,11 @@ Future wardrobe media, weather sourcing, AI calls, and notification delivery add
 
 The initial product serves an individual's own wardrobe. There is no sharing, marketplace, organization tenancy, or trained proprietary model in the baseline. Preferences are editable explicit choices. Same-site browser/API hosting is the current cookie assumption. The owner reviews unresolved product choices before implementation rather than accepting defaults invented by a developer.
 
-Secrets remain outside source control and frontend-public variables. Existing working authentication, UI transitions, and database email uniqueness must be preserved. This document does not authorize Phase 2 implementation or schema changes.
+Secrets remain outside source control and frontend-public variables. Existing working authentication, UI transitions, and database email uniqueness must be preserved. Phase 2 implementation follows the approved onboarding contract. Further modules, destructive schema changes, and production migration decisions require separate review.
 
 ## 3. System features and functional requirements
 
-There are 58 functional requirements. Only FR-AUTH-001 through FR-AUTH-012 describe delivered product features. All other functional requirements are planned or require clarification; references to existing auth building blocks in future quality work do not imply those modules exist.
+There are 58 functional requirements. FR-AUTH-001 through FR-AUTH-012 and FR-ONB-001, FR-ONB-002, FR-ONB-004 are implemented. Other functional requirements remain planned or require clarification. Profile metadata supporting future recommendation requirements is not evidence of an implemented engine.
 
 ### 3.1 Authentication and public entry
 
@@ -312,27 +315,29 @@ The system shall preserve approved Register/Login navigation and clearly mark un
 
 #### FR-ONB-001 — Capture a personal styling profile
 
-**Priority:** Must. **Status:** Planned.
+**Priority:** Must. **Status:** Implemented.
 
-The system shall allow an authenticated user to enter style, color, fit/clothing, footwear, comfort, and modesty preferences.
+The system shall allow an authenticated user to enter optional style, color, fit, footwear, comfort, coverage, occasion, activity, and transport preferences from the supported catalog.
 
-- **Inputs / outputs:** Input: user-selected preferences. Output: a profile associated with the authenticated account.
-- **Validation / errors:** Validate submitted preference values against an approved catalog; rejected values must not partially replace the saved profile.
-- **Acceptance:** An approved preference selection can be saved and read back after refresh for its owner; another account cannot retrieve it. Final field catalog and optional fields are pending.
-- **Open decisions:** DEC-002, DEC-004.
+- **Inputs / outputs:** Ten complete nullable groups; output is an owner-bound profile snapshot. null is unanswered and [] is explicit No preference.
+- **Validation / errors:** Reject unknown/duplicate codes, invalid coverage strength, incomplete snapshots, and contradictory preferred/disliked colors before mutation. Account ownership is session-derived.
+- **Acceptance:** Valid choices and explicit empty/unanswered groups survive save/refresh for their owner; a second account cannot retrieve them. Invalid writes leave the prior profile intact.
+- **Evidence:** [Profile controller][profileController], [profile service][profileService], [profile workspace][profileWorkspace]; [persistence tests][tProfilePersistence], [HTTP integration][tProfileHttp], [browser tests][tOnboarding].
+- **Decision:** DEC-002 resolved for Phase 2; initial profile vocabulary approved. Wardrobe/context taxonomy under DEC-004 remains open.
 
 <a id="fr-onb-002"></a>
 
 #### FR-ONB-002 — Control onboarding completion and skipping
 
-**Priority:** Should. **Status:** Requires clarification.
+**Priority:** Should. **Status:** Implemented.
 
-The system shall provide the agreed onboarding completion/skip behavior without representing missing answers as explicit preferences.
+The system shall provide four optional steps (STYLE, COMFORT, LIFESTYLE, REVIEW) and distinct NOT_STARTED, IN_PROGRESS, SKIPPED, COMPLETED states without blocking Dashboard.
 
-- **Inputs / outputs:** Input: completed, partial, or skipped onboarding. Output: a visible profile-completion state.
-- **Validation / errors:** Required fields, save-draft behavior, and whether recommendation access requires completion are TBD.
-- **Acceptance:** After the owner approves the policy, tests must show each required/optional/skip path and preserve the distinction between unanswered and selected values.
-- **Open decisions:** DEC-002.
+- **Inputs / outputs:** Explicit SAVE, SKIP, COMPLETE with version, resume step, and complete preference snapshot; output is the committed snapshot.
+- **Validation / errors:** Next saves before advancing; Back preserves local edits; Save and exit persists; Skip retains choices; Finish atomically completes even all-unanswered input. Failed saves preserve edits. Completed profiles remain completed on SAVE and cannot SKIP; first completedAt is retained.
+- **Acceptance:** Refresh restores the saved step/choices. Dashboard offers Start, Resume, or Edit. GET alone creates no row. Only an explicit COMPLETE finishes; no checkbox change auto-saves. Stale writes conflict instead of overwriting.
+- **Evidence:** [Onboarding flow][onboardingFlow], [profile service][profileService]; [service tests][tProfileService], [onboarding browser tests][tOnboarding], [live browser test][tProfileLive].
+- **Decision:** DEC-002 resolved; future recommendation access/constraint precedence is not implemented by this flow.
 
 <a id="fr-onb-003"></a>
 
@@ -344,21 +349,22 @@ The system shall distinguish user-designated mandatory restrictions from prefere
 
 - **Inputs / outputs:** Input: preference/restriction choices. Output: explicit constraint type and scope for the recommendation request.
 - **Validation / errors:** Do not silently convert a preference to a restriction or relax a restriction. Default classifications and conflict precedence require approval.
-- **Acceptance:** Fixtures show a mandatory exclusion removing an item while an otherwise comparable soft preference changes ranking only; the user can identify which constraints are active.
+- **Acceptance:** Fixtures show a mandatory exclusion removing an item while an otherwise comparable soft preference changes ranking only; the user can identify which constraints are active. Phase 2 stores optional coverage as PREFERENCE/REQUIRED and all other choices as preferences, but exclusion/ranking/override policies remain unimplemented.
 - **Open decisions:** DEC-003.
 
 <a id="fr-onb-004"></a>
 
 #### FR-ONB-004 — Read and update styling preferences
 
-**Priority:** Must. **Status:** Planned.
+**Priority:** Must. **Status:** Implemented.
 
-The system shall allow the profile owner to review and update saved styling preferences.
+The system shall allow the profile owner to review and update saved styling preferences without editing account identity/passwords.
 
-- **Inputs / outputs:** Input: profile changes. Output: updated saved profile and subsequent recommendation inputs.
-- **Validation / errors:** Reject invalid or unauthorized changes; preserve the previous valid profile on failure.
-- **Acceptance:** A saved change survives refresh and is used in the next recommendation. An already saved outfit is not silently rewritten as a consequence.
-- **Open decisions:** DEC-002, DEC-004.
+- **Inputs / outputs:** A complete preference replacement with the last returned version; output is the updated saved profile. Saved values are available to future recommendation consumers, which remain planned under FR-ONB-006 and FR-REC requirements.
+- **Validation / errors:** Invalid/unauthenticated changes are rejected. Genuine version conflicts preserve local edits and require reload. Uncertain writes are reconciled with GET, never blindly replayed. Cancel discards edits without bypassing conflict locks.
+- **Acceptance:** Save, refresh, and read back changed choices; preserve null versus []; reject stale versions without partial writes; account A state/queued writes cannot be accepted under account B's managed session. Future recommendation use and historical-outfit behavior are verified when those modules exist.
+- **Evidence:** [Profile editor][profileEditor], [bound profile client][profileClient], [profile service][profileService]; [editor tests][tProfileEditor], [transport tests][tProfileClient], [integration browser tests][tProfileBrowser], [HTTP integration][tProfileHttp].
+- **Decision:** DEC-002 resolved for profile editing; broader taxonomy/consumer rules remain open.
 
 <a id="fr-onb-005"></a>
 
@@ -370,7 +376,7 @@ The system shall use the user's explicit comfort/modesty choices rather than inf
 
 - **Inputs / outputs:** Input: declared preferences and request-specific constraints. Output: attributed suitability criteria.
 - **Validation / errors:** Unknown preferences must remain unknown; do not invent cultural or personal restrictions.
-- **Acceptance:** Changing transportation alone does not create a new modesty restriction. Adding an explicit coverage constraint changes eligibility according to the approved rule catalog.
+- **Acceptance:** Changing transportation alone does not create a new modesty restriction. Adding an explicit coverage constraint changes eligibility according to the approved rule catalog. Phase 2 implements self-declared capture without inference; eligibility enforcement remains planned.
 - **Open decisions:** DEC-003, DEC-004.
 
 <a id="fr-onb-006"></a>
@@ -924,11 +930,11 @@ The current UI is fashion/editorial: warm neutrals, rose accent, serif headings,
 
 Current navigation is Landing Get Started → Register, Landing Sign in → Login, Register Sign in → Login, Login Sign up → Register, Login Forgot password? → Forgot Password, and Back to sign in → Login. Successful registration leads to Login; login leads to the minimal Dashboard; confirmed logout returns to Login. These are client-side navigations, not a second authentication mechanism.
 
-Future profile, wardrobe, planner, recommendation, and saved-look screens are required by their functional requirements but have no approved screen designs or URL contracts. They must express loading, validation, empty, dependency-failure, and session-expiration states consistently.
+Onboarding and profile editing extend the existing warm-neutral/rose styling with native fieldsets, named color controls, progress, review/edit actions, mobile layouts, loading/retry, field errors, conflicts, and session-expiration handling. Future wardrobe, planner, recommendation, and saved-look screens remain unimplemented.
 
 ### 4.2 Existing backend HTTP contracts
 
-The following contracts are implemented in [AuthController][controller]. Bodies are JSON; the logout success body is empty. Request credentials are used only at the HTTPS/HTTP boundary and are not safe response fields.
+The following contracts are implemented in [AuthController][controller] and [ProfileController][profileController]. Profile JSON and lifecycle details are documented in the [profile API](../api/styling-profile.md). Bodies are JSON; the logout success body is empty. Request credentials are used only at the HTTPS/HTTP boundary and are not safe response fields.
 
 | Method and path | Request / access | Success | Expected failures |
 | --- | --- | --- | --- |
@@ -937,6 +943,9 @@ The following contracts are implemented in [AuthController][controller]. Bodies 
 | POST /api/auth/login | email, password; public with CSRF | 200: id, fullName, email; session context saved | 400 fields; generic 401 credentials; 403 CSRF; safe 500 |
 | GET /api/auth/me | Authenticated session; no user ID parameter | 200: id, fullName, email from current principal | 401 missing/expired authentication; safe 500 |
 | POST /api/auth/logout | Authenticated session and CSRF | 204; context/session/cookies cleared | 401 if already unauthenticated; 403 CSRF; safe server failure |
+| GET /api/profile/options | Authenticated session | 200: supported catalog | 401; safe 500 |
+| GET /api/profile/me | Authenticated session; principal owner | 200: saved profile or virtual NOT_STARTED; no GET insert | 401; safe 500 |
+| PUT /api/profile/me | Authenticated session, CSRF, full versioned snapshot and intent | 200: committed profile | 400 invalid snapshot/state; 401; 403 CSRF; 409 version/creation race; safe 500 |
 
 Other /api/** requests require authentication. Unexpected non-API backend access is denied; error dispatch is deliberately allowed for framework error handling. Unsupported methods on the public register/login paths reach MVC method handling. No JWT, refresh token, authentication cookie readable by JavaScript, or login redirect HTML is part of the API contract.
 
@@ -977,7 +986,7 @@ The backend uses Spring Security's SPA CSRF handling. Login rotates an existing 
 
 Cookie-based CSRF validates a matching cookie/header pair; it is not a server-revocable token registry. Rotation does not invalidate an old matching pair deliberately restored by a client. This is an existing mechanism characteristic, not a new single-use-token guarantee.
 
-Development accepts exactly http://localhost:3000, credentialed GET/POST/OPTIONS, and Content-Type/X-XSRF-TOKEN. localhost:3000 and localhost:8080 are different origins but the same site; substituting 127.0.0.1 or port 3001 does not match the configured origin. Production requires one exact FRONTEND_ORIGIN and Secure cookies with the prod profile. No wildcard or arbitrary reflected origins are allowed.
+Development accepts exactly http://localhost:3000, credentialed GET/POST/PUT/OPTIONS, and Content-Type/X-XSRF-TOKEN. localhost:3000 and localhost:8080 are different origins but the same site; substituting 127.0.0.1 or port 3001 does not match the configured origin. Production requires one exact FRONTEND_ORIGIN and Secure cookies with the prod profile. No wildcard or arbitrary reflected origins are allowed.
 
 SameSite=Lax assumes same-site hosting; truly cross-site production topology is unresolved. CORS alone cannot change SameSite behavior. Next.js server-rendered data or Server Actions would require explicit server-side session verification; the current client guard is insufficient for them.
 
@@ -985,7 +994,7 @@ SameSite=Lax assumes same-site hosting; truly cross-site production topology is 
 
 [UserRepository][repository] uses Spring Data JPA against Neon PostgreSQL. Server environment variables DB_URL, DB_USERNAME, and DB_PASSWORD configure the connection; their values are intentionally absent from this document. Hibernate development schema management is currently update. No manual SQL migration strategy or production migration tool is established by this specification.
 
-Only app_users is an application entity table in the inspected model. Future persistence contracts must add ownership and validation without treating this SRS's conceptual entities as finalized DDL.
+Application tables are app_users plus styling_profiles, styling_profile_answers, and styling_profile_choices. The profile shares its owner primary key/foreign key, has @Version, status/step/timestamps, and answer/choice collections preserving null versus explicit empty. No existing account constraint is changed. Future conceptual entities are not finalized DDL.
 
 ### 4.5 Proposed external services
 
@@ -1295,7 +1304,7 @@ Before wardrobe and history collections are released, the system shall define an
 
 ### 6.1 Existing persistent model
 
-The implemented entity is [User entity][entity]. The following summarizes its mapping rather than redefining the production schema.
+The existing account entity is [User entity][entity]. Phase 2 additionally implements [StylingProfile][profileEntity] with the owner-bound answer/choice model described below. The following summarizes its mapping rather than redefining the production schema.
 
 | Java field | Mapped column | Existing constraint / behavior |
 | --- | --- | --- |
@@ -1312,11 +1321,11 @@ The incoming password is a transient request value; it is not a User field. Acco
 
 ### 6.2 Proposed conceptual model
 
-These are conceptual relationships, not approved table names, field lists, cardinality implementations, or migration scripts.
+The implemented profile relationship is identified explicitly; all other rows are future conceptual relationships, not finalized schemas or migration scripts. See the [profile data contract](../api/styling-profile.md#persistence-and-concurrency) for the implemented tables.
 
 | Concept | Relationship / purpose | Decisions still needed |
 | --- | --- | --- |
-| Styling profile | Account owns its saved styling preferences; intended as one effective profile | Completion, vocabulary, defaults, versioning: DEC-002 / DEC-004 |
+| Styling profile (implemented) | Account owns zero or one profile; shared key and answer/choice tables; versioned full replacement | Phase 2 contract approved; recommendation consumers/precedence remain planned |
 | Wardrobe item | Account owns many item records | Attributes, availability, removal semantics: DEC-004 |
 | Item media | Owned image associated with item | Number of images, storage, metadata and retention: DEC-005 |
 | Occasion / request context | Account supplies place, time, activity, transport, weather, and request choices | Persisted versus transient request data, location precision/time zone: DEC-007 / DEC-008 / DEC-014 |
@@ -1333,7 +1342,7 @@ An account is the ownership root. A recommendation must never reference another 
 
 ### 6.3 Data integrity and lifecycle
 
-Future write operations validate required fields and permitted values before committing a change. Unanswered preferences must remain distinct from an explicit “no preference” choice where that distinction affects rules. Changing profile defaults must not silently rewrite saved historical outfits.
+Profile writes validate the full snapshot before transactional mutation and flush, using optimistic version checks and narrow creation-race handling. Rejected snapshots do not partially replace collections. Future write operations must retain equivalent ownership/integrity safeguards. Unanswered preferences must remain distinct from an explicit “no preference” choice where that distinction affects rules. Changing profile defaults must not silently rewrite saved historical outfits.
 
 No finalized wardrobe taxonomy, database schema for planned modules, personal-data retention period, legal basis, or export format is asserted. These decisions block acceptance where referenced. Test data must be synthetic or a deliberately authorized development account; production wardrobe images and real credentials must not become test fixtures.
 
@@ -1349,6 +1358,9 @@ No finalized wardrobe taxonomy, database schema for planned modules, personal-da
 | BR-004 | Current account identity comes from the authenticated principal; safe responses exclude credentials. /me reflects the login-time identity snapshot. FR-AUTH-011 |
 | BR-005 | Private client navigation waits for session verification; Spring authorizes API requests independently. FR-AUTH-010 |
 | BR-006 | Recovery and Google/Apple actions are unavailable; no fake success or substitute local authentication is allowed. FR-AUTH-012 |
+| BR-007 | All profile answers are optional; null differs from []; explicit completion only; skipping never blocks Dashboard. FR-ONB-001 / FR-ONB-002 |
+| BR-008 | Only explicit coverage may be REQUIRED; other groups/disliked colors remain preferences; no personal inference or current recommendation enforcement. FR-ONB-003 / FR-ONB-005 |
+| BR-009 | Full snapshot and expected version required; first explicit save creates; stale updates conflict; GET does not insert; completedAt is retained. FR-ONB-002 / FR-ONB-004 |
 
 The string-unit minimum is a statement of the actual Java/JavaScript validation semantics, not a new Unicode password policy. Any later policy change must consider existing accounts and have explicit acceptance tests.
 
@@ -1502,26 +1514,27 @@ The following 13 use cases illustrate requirement interactions. A planned use ca
 
 ### UC-006 — Create or revise a styling profile
 
-**Actor:** Authenticated user. **Status:** Planned; decisions pending.
+**Actor:** Authenticated user. **Status:** Implemented for profile capture/editing; recommendation use remains planned.
 
-**Preconditions:** Onboarding/profile feature is delivered; approved field and completion rules exist.
+**Preconditions:** Verified session; supported catalog loaded; no profile is also valid.
 
 **Main success flow:**
 
-1. Enter self-declared style, color, comfort, modesty, and related supported preferences.
-2. Review required fields and effective defaults.
-3. Save the profile.
-4. Reopen and correct preferences; review them when preparing an outfit request.
+1. Enter setup from Dashboard (Start or Resume), or open Edit preferences.
+2. Choose optional style/colors, comfort/coverage, and lifestyle values; distinguish unanswered from No preference.
+3. Next saves before advancing; review and edit steps as needed.
+4. Explicitly finish, save and exit, or save editor changes; refresh restores the committed snapshot.
 
 **Alternative / error flows:**
 
-- Required/invalid values: keep the entered form and identify errors.
-- Skip or partial completion follows the approved onboarding policy.
-- Unauthorized access to another profile is denied.
+- Skip retains choices and leaves Dashboard accessible; Back preserves local unsaved changes.
+- Invalid fields preserve edits and focus relevant errors; missing session restores/signs in.
+- Conflict retains draft and requires explicit reload; uncertain delivery uses GET reconciliation without PUT replay.
+- Another account cannot select this owner in the API; logout/account change discards account-specific UI state.
 
-**Postconditions:** Only the owner's confirmed preferences are stored and available as request defaults.
+**Postconditions:** Only confirmed owner choices/status/step are stored atomically. Future recommendation request defaults are not yet available.
 
-**Related requirements:** FR-ONB-001, FR-ONB-002, FR-ONB-004, FR-ONB-005, FR-ONB-006.
+**Related requirements:** FR-ONB-001, FR-ONB-002, FR-ONB-004; future FR-ONB-003, FR-ONB-005, FR-ONB-006.
 
 <a id="uc-007"></a>
 
@@ -1703,7 +1716,7 @@ The following 13 use cases illustrate requirement interactions. A planned use ca
 | Concern | Repository baseline / evidence |
 | --- | --- |
 | Backend | Java 21, Spring Boot 4.1.1, Spring Security 7.1.1 (Boot-managed), Spring Data JPA, Hibernate, Jakarta Validation, PostgreSQL JDBC, Maven Wrapper; [Backend dependencies][pom] / [Backend session guide][apidoc] |
-| Backend package structure | com.chamodi.styling; feature-based auth packages and common DTO/exception handling |
+| Backend package structure | com.chamodi.styling; feature-based auth/profile packages and common DTO/exception handling |
 | Frontend | Next.js 16.3.5 App Router, React 19.2.8, TypeScript, Tailwind CSS v4, shadcn/Base UI components; [Frontend dependencies and scripts][pkg] |
 | Workspace | pnpm 10.34.5; frontend workspace and separate Maven backend |
 | Database | Neon PostgreSQL, JPA development schema update; [Development configuration][props] |
@@ -1726,7 +1739,7 @@ Future weather/media/AI integrations require contract, failure, privacy, cost, a
 
 ### 10.1 Evidence and verification status
 
-This documentation milestone inspects source and test definitions; it does not rerun application suites, contact Neon, create accounts, or certify live operation. “Implemented” is an evidence classification, not a fresh test result. The [traceability matrix](requirements-traceability.md) explicitly distinguishes existing tests from future verification.
+Baseline 1.0 inspected source without rerunning applications. Revision 1.1 records actual Phase 2 verification: 176 backend tests with isolated PostgreSQL; frontend lint/typecheck/build; 107 deterministic helper/browser tests; and one real browser integration case using local Spring/PostgreSQL. Neon, production HTTPS, and wider browser/accessibility acceptance remain pending. See [exact commands and limits](../testing/phase-2-verification.md).
 
 | Layer | Existing evidence | What it establishes / does not establish |
 | --- | --- | --- |
@@ -1738,9 +1751,10 @@ This documentation milestone inspects source and test definitions; it does not r
 | Frontend helpers | [Frontend validation tests][tValidation], [Fetch client tests][tClient] | Client validation, byte boundaries, credentialed requests, CSRF serialization/refresh/retries |
 | Browser flows | [Frontend auth browser tests][tBrowser] and [Playwright configuration][testconfig] | Mocked API flows, refresh/expiration/errors, stale requests, navigation/motion and responsive checks; not true live cookie/CORS/Neon behavior |
 | Full Spring context | [Full application context test][tContext] | Application startup with configured datasource; requires appropriate environment and is not a substitute for future resource integration tests |
-| Live integration | Manual walkthroughs in [Frontend integration guide][webdoc] and [Backend session guide][apidoc] | Separate browser/PowerShell proof against running services; requires deliberate authorized test data and environment |
+| Profile persistence / HTTP | [Persistence tests][tProfilePersistence], [HTTP integration][tProfileHttp] | 14 real profile PostgreSQL tests, including two-account sessions, atomic validation, races, lifecycle, CSRF/CORS |
+| Live integration | [Live profile browser test][tProfileLive] and [verification guide](../testing/phase-2-verification.md) | Real local HTTP/CSRF/cookies and PostgreSQL verified; Neon/production HTTPS still pending |
 
-Illustrative existing method references include AuthServiceTests.registersWithNormalizedDetailsAndOnlyTheEncodedPassword, AuthControllerTests.createsAccountAndReturnsOnlySafeFields, and SessionAuthenticationTests.rotatesExistingSessionIdOnSuccessfulLoginAndKeepsAuthentication. Test paths and scope are linked in the matrix; presence of a test name is not a claim of a run during this task.
+Illustrative existing method references include AuthServiceTests.registersWithNormalizedDetailsAndOnlyTheEncodedPassword, AuthControllerTests.createsAccountAndReturnsOnlySafeFields, and SessionAuthenticationTests.rotatesExistingSessionIdOnSuccessfulLoginAndKeepsAuthentication. Test paths and scope are linked in the matrix; the Phase 2 verification guide records the executed suites and environment separately from test presence.
 
 ### 10.2 Reproducible application checks for later feature verification
 
@@ -1757,7 +1771,7 @@ pnpm build
 pnpm test
 ```
 
-The full backend context may require DB environment variables; distinguish an environment limitation from an assertion failure rather than weakening configuration. Playwright browser checks use the built frontend and mocked API responses, with desktop/mobile Chromium projects. Review existing guides for setup/ports. These commands are documented for verification planning and were not executed for this documentation-only milestone.
+The full backend context may require DB environment variables; distinguish an environment limitation from an assertion failure rather than weakening configuration. Playwright browser checks use the built frontend and mocked API responses, with desktop/mobile Chromium projects. Review existing guides for setup/ports. These checks were executed during Phase 2 as recorded in the verification guide; additional future-feature acceptance remains planned.
 
 ### 10.3 Planned feature acceptance strategy
 
@@ -1781,11 +1795,11 @@ Every FR/NFR definition must have one stable unique ID and one matching matrix r
 
 ### 11.1 Delivered baseline
 
-Phase 0 and Phase 1 provide setup, approved public/authentication UI, persistence/validation, backend session authentication, frontend integration, isolated automated tests, and integration walkthroughs. Only a minimal account screen is delivered as Dashboard. There is no full styling dashboard or Phase 2 implementation.
+Phase 0 and Phase 1 provide setup, approved public/authentication UI, persistence/validation, backend session authentication, frontend integration, isolated automated tests, and integration walkthroughs. Phase 2 adds optional onboarding, owner-bound versioned profiles, editing, setup entry points, and layered verification. Dashboard remains minimal; no wardrobe or recommendation dashboard is implemented.
 
 ### 11.2 Proposed first usable outfit MVP
 
-Subject to DEC-001, the informal roadmap suggests: styling profile → event/location/time/weather context → manually maintained digital wardrobe → transparent eligibility/composition/ranking → rule-based explanations → saved looks, with basic feedback as prioritized. All remain planned. Optional AI explanation wording must not be necessary to obtain a useful result.
+Subject to DEC-001, the informal roadmap suggests: styling profile → event/location/time/weather context → manually maintained digital wardrobe → transparent eligibility/composition/ranking → rule-based explanations → saved looks, with basic feedback as prioritized. Styling profile capture/editing is delivered; wardrobe, context, recommendation consumers, saving, and feedback remain planned. Optional AI explanation wording must not be necessary to obtain a useful result.
 
 Priorities identify implementation order and risk, not an approved promise to deliver every Must requirement in the next phase. Media handling, onboarding details, provider choices, privacy controls, and acceptance measurements must be explicitly selected.
 
@@ -1818,14 +1832,14 @@ This mapping preserves the whole-product roadmap without manufacturing finalized
 
 ### 12.1 Decision log
 
-All 18 entries below are **Open**. The project owner is the decision owner; “before” identifies a dependency gate, not a date commitment. Record the selected option, rationale, date, and affected requirements when resolving an entry.
+There are 18 stable decision entries. DEC-002 is resolved for Phase 2; DEC-003 and DEC-004 have approved profile-only portions with remaining work. The other 15 entries remain Open (17 entries still contain unresolved work). The project owner remains the decision owner. Dates below record decisions, not delivery deadlines.
 
 | ID | Decision / question | Affected areas | Needed before |
 | --- | --- | --- | --- |
-| <a id="dec-001"></a>DEC-001 — Release scope and styling breadth | Confirm the MVP boundary and whether makeup, hair, and accessory recommendations extend beyond wardrobe outfits. Landing category imagery is not evidence of those engines. | FR-AUTH-001; all planned modules | Before Phase 2 scope approval |
-| <a id="dec-002"></a>DEC-002 — Onboarding contract | Define required/optional profile fields, vocabulary, defaults, whether onboarding can be skipped, and how incomplete profiles behave. | FR-ONB-001, FR-ONB-002, FR-ONB-004 | Before onboarding UI/API |
-| <a id="dec-003"></a>DEC-003 — Constraint semantics | Classify hard restrictions versus soft preferences; decide profile/request precedence, conflicting constraints, and permitted user-confirmed relaxation. | FR-ONB-003, FR-PLAN-005, FR-REC-002, FR-REC-009 | Before rule implementation |
-| <a id="dec-004"></a>DEC-004 — Wardrobe and context taxonomy | Agree clothing categories, item metadata, availability states, style/formality/activity options, missing attributes, and manual-entry validation. | FR-WARD-001 through FR-WARD-008; FR-PLAN-001; FR-REC-003 | Before wardrobe schema/API |
+| <a id="dec-001"></a>DEC-001 — Release scope and styling breadth | Confirm the overall outfit MVP boundary and whether makeup, hair, and accessory engines extend beyond wardrobe outfits. Phase 2 profile scope is approved independently; landing imagery is not evidence of those engines. | FR-AUTH-001; all planned modules | Before recommendation/broader styling scope |
+| <a id="dec-002"></a>DEC-002 — Onboarding contract | **Resolved, recorded 2026-10-17:** approved four screens, ten optional catalog groups, null versus No preference, SAVE/SKIP/COMPLETE, save/resume, no Dashboard gate, separate identity editing. | FR-ONB-001, FR-ONB-002, FR-ONB-004 | Implemented Phase 2 |
+| <a id="dec-003"></a>DEC-003 — Constraint semantics | **Partially resolved, recorded 2026-10-17:** only optional coverage may be Required; other choices/disliked colors are preferences; never infer restrictions. Engine conflict precedence, request overrides, and relaxation remain Open. | FR-ONB-003, FR-PLAN-005, FR-REC-002, FR-REC-009 | Before rule implementation |
+| <a id="dec-004"></a>DEC-004 — Wardrobe and context taxonomy | **Partially resolved, recorded 2026-10-17:** initial profile style/color/comfort/lifestyle catalog approved. Wardrobe categories, item metadata, availability, rule taxonomy, and missing attributes remain Open. | FR-WARD-001 through FR-WARD-008; FR-PLAN-001; FR-REC-003 | Before wardrobe schema/API |
 | <a id="dec-005"></a>DEC-005 — Media policy | Select local/object storage, supported file types and limits, image metadata handling, ownership access, replacement, and deletion. | FR-WARD-004, FR-WARD-007; NFR-PRIV-002 | Before image upload |
 | <a id="dec-006"></a>DEC-006 — Optional item recognition | Decide whether AI classification is in scope, provider/processing location, confidence handling, user confirmation, and consent. | FR-WARD-008 | Before recognition work |
 | <a id="dec-007"></a>DEC-007 — Weather contract | Select provider and usable fields, units, forecast horizon, freshness, rate limits, failure behavior, and user-entered fallback. | FR-PLAN-003; FR-REC-005; NFR-REL-003 | Before weather adapter |
@@ -1853,11 +1867,11 @@ All 18 entries below are **Open**. The project owner is the decision owner; “b
 
 ### 12.3 Change control
 
-Before Phase 2, review DEC-001 through DEC-005 and the relevant context/rule decisions. For each subsequent slice, resolve its dependencies, add test cases against the accepted criteria, and update this document and the matrix together. Keep completed behavior distinct from proposals, and retain obsolete IDs/history rather than renumbering the baseline.
+Phase 2 resolved its onboarding contract and approved initial profile vocabulary/strength storage. Before each subsequent slice, resolve the remaining wardrobe/media/context/rule dependencies, add acceptance tests, and update this document and the matrix together. Keep completed behavior distinct from proposals, and retain obsolete IDs/history rather than renumbering the baseline.
 
 ## 13. Evidence register
 
-All links below are repository-relative. Source and test files were inspected; no application test or live database verification is newly claimed by this milestone.
+All links below are repository-relative. Source/test definitions establish scope; executed Phase 2 results and environment limits are recorded in the [verification guide](../testing/phase-2-verification.md). Local PostgreSQL/live-browser verification is not a Neon or production claim.
 
 | Evidence | Repository path |
 | --- | --- |
@@ -1868,6 +1882,13 @@ All links below are repository-relative. Source and test files were inspected; n
 | [Frontend dependencies and scripts][pkg] | apps/web/package.json |
 | [AuthController][controller] | apps/api/src/main/java/com/chamodi/styling/auth/controller/AuthController.java |
 | [AuthService][service] | apps/api/src/main/java/com/chamodi/styling/auth/service/AuthService.java |
+| [Profile controller][profileController] | apps/api/src/main/java/com/chamodi/styling/profile/controller/StylingProfileController.java |
+| [Profile service][profileService] | apps/api/src/main/java/com/chamodi/styling/profile/service/StylingProfileService.java |
+| [Profile entity][profileEntity] | apps/api/src/main/java/com/chamodi/styling/profile/entity/StylingProfile.java |
+| [Profile workspace][profileWorkspace] | apps/web/src/components/profile/profile-workspace.tsx |
+| [Profile transport][profileClient] | apps/web/src/lib/api/profile-client.ts |
+| [Profile HTTP integration][tProfileHttp] | apps/api/src/test/java/com/chamodi/styling/profile/controller/StylingProfileHttpIntegrationTests.java |
+| [Live browser profile test][tProfileLive] | apps/web/tests/live/profile-live.spec.ts |
 | [User entity][entity] | apps/api/src/main/java/com/chamodi/styling/auth/entity/User.java |
 | [UserRepository][repository] | apps/api/src/main/java/com/chamodi/styling/auth/repository/UserRepository.java |
 | [RegisterRequest][regdto] | apps/api/src/main/java/com/chamodi/styling/auth/dto/RegisterRequest.java |
@@ -1962,3 +1983,21 @@ All links below are repository-relative. Source and test files were inspected; n
 [tClient]: <../../apps/web/tests/unit/auth-client.spec.ts>
 [tValidation]: <../../apps/web/tests/unit/validation.spec.ts>
 [testconfig]: <../../apps/web/playwright.config.ts>
+
+[onboarding]: <../../apps/web/src/app/(app)/onboarding/page.tsx>
+[profilePage]: <../../apps/web/src/app/(app)/profile/page.tsx>
+[onboardingFlow]: ../../apps/web/src/components/onboarding/onboarding-flow.tsx
+[profileEditor]: ../../apps/web/src/components/profile/profile-editor.tsx
+[profileWorkspace]: ../../apps/web/src/components/profile/profile-workspace.tsx
+[profileClient]: ../../apps/web/src/lib/api/profile-client.ts
+[profileController]: ../../apps/api/src/main/java/com/chamodi/styling/profile/controller/StylingProfileController.java
+[profileService]: ../../apps/api/src/main/java/com/chamodi/styling/profile/service/StylingProfileService.java
+[profileEntity]: ../../apps/api/src/main/java/com/chamodi/styling/profile/entity/StylingProfile.java
+[tProfilePersistence]: ../../apps/api/src/test/java/com/chamodi/styling/profile/repository/StylingProfilePersistenceTests.java
+[tProfileHttp]: ../../apps/api/src/test/java/com/chamodi/styling/profile/controller/StylingProfileHttpIntegrationTests.java
+[tProfileService]: ../../apps/api/src/test/java/com/chamodi/styling/profile/service/StylingProfileServiceTests.java
+[tOnboarding]: ../../apps/web/tests/auth/onboarding.spec.ts
+[tProfileEditor]: ../../apps/web/tests/auth/profile-editor.spec.ts
+[tProfileClient]: ../../apps/web/tests/unit/profile-client.spec.ts
+[tProfileBrowser]: ../../apps/web/tests/auth/profile-integration.spec.ts
+[tProfileLive]: ../../apps/web/tests/live/profile-live.spec.ts

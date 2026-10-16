@@ -67,7 +67,7 @@ or sessionStorage. Cookie CSRF uses a double-submit comparison: rotation changes
 the browser cookie, but does not server-revoke an old matching cookie/header pair
 deliberately restored by a client.
 
-Development allows exactly `http://localhost:3000`, credentials, GET/POST/OPTIONS,
+Development allows exactly `http://localhost:3000`, credentials, GET/POST/PUT/OPTIONS,
 and `Content-Type`/`X-XSRF-TOKEN` headers. It never reflects arbitrary origins or
 uses a wildcard origin with credentials. Configure one exact origin with
 `FRONTEND_ORIGIN` (scheme, host, optional port; no path or wildcard).
@@ -196,5 +196,11 @@ a separate test application without datasource auto-configuration and mocks the
 repository/service, exercising real servlet session cookies. The existing full
 application-context test remains unchanged and needs the real DB environment.
 
-No JWT, OAuth, password reset, frontend integration, roles, or deployment
-infrastructure is implemented.
+Frontend authentication integration and Phase 2 styling profiles are now implemented.
+The three authenticated profile endpoints reuse this session/CSRF architecture;
+credentialed CORS additionally permits PUT for the same exact frontend origin.
+See [profile contracts](../../docs/api/styling-profile.md) and
+[Phase 2 verification](../../docs/testing/phase-2-verification.md) for persistence,
+ownership, and isolated database/live-browser testing. Auth response contracts remain unchanged.
+
+No JWT, OAuth, password-reset backend, roles, or deployment infrastructure is implemented.

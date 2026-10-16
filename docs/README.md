@@ -1,22 +1,25 @@
 # Project documentation
 
-This directory contains the requirements baseline for the Personal Styling & Outfit Recommendation Application. It covers the entire intended product while separating the delivered Phase 0/Phase 1 authentication foundation from planned features. Phase 2 has not started.
+This directory covers the entire intended Personal Styling & Outfit Recommendation Application. Phase 0/1 authentication and Phase 2 onboarding/profile management are delivered; wardrobe and recommendations remain planned.
 
 ## Requirements baseline
 
-- [Software Requirements Specification](requirements/SRS.md): product scope, current implementation, 58 functional requirements, 24 non-functional requirements, interfaces, conceptual data, business rules, 13 use cases, verification strategy, and 18 open decisions.
+- [Software Requirements Specification](requirements/SRS.md): product scope, 58 functional and 24 non-functional requirements, interfaces/data/rules, 13 use cases, and 18 decision entries (DEC-002 resolved; DEC-003/004 partly resolved).
 - [Requirements traceability](requirements/requirements-traceability.md): all 82 FR/NFR IDs mapped to implementation/test evidence or explicitly pending verification.
 
-Baseline 1.0 is dated 2026-10-16 and was prepared against main at fc2931b. It is a draft for owner review; proposed future priorities and acceptance criteria are not confirmed release commitments. Implemented status reflects inspected source, not newly executed application tests or a production certification.
+Baseline 1.0 was prepared on 2026-10-16 after Phase 1. Revision 1.1, dated 2026-10-17, records the owner-approved Phase 2 contract and implementation on the feature branch. Future priorities and decisions remain proposals. Actual local verification is recorded separately from implementation status and production/Neon claims.
 
 ## Existing implementation and testing guides
 
 - [Frontend authentication integration and testing](../apps/web/README.md): local setup, browser session behavior, automated tooling, and the live browser walkthrough.
 - [Backend session authentication API and testing](../apps/api/SESSION_AUTH.md): endpoint contracts, cookie/CSRF/CORS behavior, PowerShell walkthrough, and security limitations.
+- [Styling profile API](api/styling-profile.md): catalog, snapshot/lifecycle, validation, ownership, persistence, concurrency, and browser consistency.
+- [Phase 2 verification](testing/phase-2-verification.md): commands/results, isolated PostgreSQL and live-browser setup, and pending manual Neon checks.
+- [Learning journal](learning/LEARNINGS.md): chronological concepts, observed challenges, verified results, and further study.
 - [Original epics and user stories](<../Personal Styling App — Epics & User Stories 1.md>): informal whole-product roadmap, used as planning evidence rather than an approved specification.
 - [Landing image notes](../apps/web/public/images/landing/README.md): replaceable local development imagery.
 
-Source code takes precedence for the current implementation. The older backend guide's final scope note predates frontend integration; the SRS records that historical discrepancy without rewriting existing guides.
+Source code takes precedence for the current implementation. Keep older milestone context identifiable, and update current contract/status notes when delivery changes them.
 
 ## Documentation categories
 
@@ -25,8 +28,9 @@ Source code takes precedence for the current implementation. The older backend g
 | Requirements | SRS and traceability under requirements/ |
 | Architecture | Future system boundaries, deployment, and architecture decisions; no new architecture document is created by this milestone |
 | Design | Future approved flows, visual behavior, and interaction specifications; current UI is evidenced by source and tests |
-| API | Existing backend contract guide remains in apps/api/SESSION_AUTH.md; future API documentation can be organized here when needed |
-| Testing | Existing frontend/backend guides and source tests; future cross-feature plans can be organized here when needed |
+| API | Session guide in apps/api/SESSION_AUTH.md and styling profile contract under api/ |
+| Testing | Phase 2 reproducible verification under testing/, plus frontend/backend guides and source tests |
+| Learning | Phase-by-phase technical journal under learning/ |
 
 Only categories with actual documents are linked. Empty placeholder documents or directories are unnecessary.
 
@@ -40,4 +44,4 @@ Only categories with actual documents are linked. Empty placeholder documents or
 6. Review links, uniqueness, cross-document consistency, and secrets, then run git diff --check.
 7. Keep credentials, real account examples, private images, session/CSRF values, and generated artifacts out of documentation and Git.
 
-The documentation milestone changes no application code, database schemas, or existing UI. It does not authorize implementation of Phase 2.
+Documentation records approved implementation and verified outcomes; it does not authorize future scope, destructive schema changes, provider choices, or production deployment.

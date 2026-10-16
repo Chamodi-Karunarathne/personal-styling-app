@@ -6,14 +6,14 @@ Personal Styling & Outfit Recommendation Application
 
 This journal connects the project's implementation to the technical concepts behind it. It is intended for revision, portfolio discussion, and future maintenance: explain what changed, how it works, what the evidence supports, and what deserves further study.
 
-The first entries are retrospective, prepared on 2026-10-16 against `main` at `1f8b491`, after Phase 0 and Phase 1. They are organized by development phase rather than presented as contemporaneous diary entries. Current versions and final source may include improvements made after a phase's first commit. Phase 2 has not started.
+The first entries are retrospective, prepared on 2026-10-16 against `main` at `1f8b491`, after Phase 0 and Phase 1. They are organized by development phase rather than presented as contemporaneous diary entries. The Phase 2 entry was appended on 2026-10-17 from actual implementation and verification on its feature branch. Current files may include later improvements; earlier entries retain their historical scope.
 
 ### Evidence and interpretation
 
 - **Confirmed implementation** is supported by linked source, documentation, test definitions, or the identified Git commits.
 - **Technical explanation** describes how the implementation works and why its structure is useful. Unless a rationale is explicitly documented, this is an explanation of the tradeoff, not a claim about an unrecorded personal decision.
 - **Challenges** distinguish changes visible in history from risks addressed by code. No undocumented outage, debugging conversation, personal experience, or historical test result is reconstructed.
-- **Verification** distinguishes test coverage from execution. Application suites and live Neon checks were not rerun to create this journal; no fresh passing counts are claimed.
+- **Verification** distinguishes coverage from execution. Phase 0/1 retrospective entries did not rerun suites. The Phase 2 entry records actual local runs; no live Neon result is claimed.
 - **Further study** identifies work that has not been completed. It is not a delivery commitment.
 
 The [root README](../../README.md) explains how to run the project. The [SRS](../requirements/SRS.md) defines intended behavior, priorities, and unresolved decisions. The [traceability matrix](../requirements/requirements-traceability.md) connects requirements to code/tests. This journal explains the engineering lessons without replacing those documents.
@@ -25,7 +25,8 @@ The [root README](../../README.md) explains how to run the project. The [SRS](..
 3. [Phase 1B — Backend Authentication](#phase-1b--backend-authentication)
 4. [Phase 1C — Frontend–Backend Integration](#phase-1c--frontendbackend-integration)
 5. [Documentation practices after Phase 1](#documentation-practices-after-phase-1)
-6. [Maintaining entries for future phases](#maintaining-entries-for-future-phases)
+6. [Phase 2 — Onboarding and Styling Profile Management](#phase-2--onboarding-and-styling-profile-management)
+7. [Maintaining entries for future phases](#maintaining-entries-for-future-phases)
 
 ## Phase 0 — Project Setup and Architecture
 
@@ -309,9 +310,78 @@ The backend session guide's final historical scope note predates frontend integr
 
 Future learning about wardrobe, recommendations, weather, AI explanations, and feedback belongs in new entries only after evidence exists. Development images generated with AI are not evidence of a runtime recommendation model or item-recognition integration.
 
+## Phase 2 — Onboarding and Styling Profile Management
+
+Recorded 2026-10-17 on `feature/phase-2-user-onboarding`, through verification commit `21d48f5`. Requirements and evidence are in the [updated SRS](../requirements/SRS.md), [profile contract](../api/styling-profile.md), and [verification guide](../testing/phase-2-verification.md).
+
+### 2.1 What was implemented
+
+Four optional onboarding steps collect style/colors, comfort/coverage, and lifestyle choices, followed by review. Next saves the full draft; Back keeps local changes; Save and exit, Skip, and explicit Finish have separate meanings. Dashboard remains available regardless of onboarding status. A profile editor reuses the controls, shows identity read-only, and preserves edits after errors/conflicts.
+
+The backend adds a feature-based profile package, stable option catalog, full-snapshot DTOs, transactional service, relational persistence, and three authenticated endpoints. Frontend integration shares the established session/CSRF transport rather than adding another authentication system. No recommendation engine or wardrobe feature was added.
+
+Commits were made incrementally after verification: `f828d80` onboarding UI, `f38e69b` editor, `a65b3f7` persistence, `4f8cba2` REST API, `5e9c309` shared transport, `27c1281` real integration, and `21d48f5` regression/live verification. UI-only milestones explicitly described local previews instead of pretending to save.
+
+### 2.2 Important technical concepts
+
+**Meaningful absence:** null means unanswered; [] means explicit No preference. An answered-category collection records empty-but-answered groups separately from selected choices. Removing the last checkbox returns to unanswered; choosing No preference is explicit. This distinction is part of both JSON and persistence, not only presentation.
+
+**Ownership and optimistic concurrency:** a shared profile/user primary key gives zero-or-one profile per account. Controllers obtain the owner from the session principal. JPA @Version and expected-version comparison reject stale snapshots; database uniqueness handles concurrent first creation. A pre-check does not eliminate a race, and a generic integrity exception must not be mislabeled as a profile conflict.
+
+**Atomic replacement:** the service validates codes, strengths, duplicates, colors, and state before changing managed collections, then flushes inside a transaction. Required JSON properties distinguish a missing group from an explicit null. Rejecting unknown write properties prevents silent acceptance of unsupported categories or owner fields without changing global JSON rules.
+
+**Asynchronous identity:** an account-bound client captures a session generation. Login/logout invalidate it before joining the shared queue. Checks around awaits and immediately before writes prevent queued old work from using a new managed session. A separate `/me` preflight checks the current owner; it does not make cross-tab cookie changes atomic.
+
+### 2.3 Architectural decisions and tradeoffs
+
+The approved model uses three simple relational tables and element collections, with no new dependency, speculative audit framework, or change to User. Hibernate update remains the existing development strategy; production migrations still need a reviewed plan. A GET returns a virtual NOT_STARTED object without inserting a profile. Only an explicit write creates it.
+
+Preference controls and review markup are reused between wizard/editor. Account-scoped workspaces remount on account/session change or explicit reload, not every saved version, so a successful Next is not interrupted. The authoritative catalog is loaded from the server; a network failure does not silently substitute an empty profile or local catalog.
+
+Only explicit coverage choices may be Required. Other choices stay preferences, and no transport, gender, or cultural label creates a restriction. Storage of this distinction is complete; actual filtering/ranking remains a future module.
+
+### 2.4 Observed challenges
+
+PostgreSQL integration exposed timestamp precision drift: the first response retained nanoseconds while the reloaded timestamp used microseconds. Review also identified the risk of generated creation time following an earlier update time. Both were corrected before the persistence commit.
+
+Replacing a request can silently clear data if omitted JSON fields become null. Required properties plus unknown-field rejection were tested with both standalone Jackson and the actual Spring MVC mapper.
+
+Independent auth/profile request queues would allow stale tokens and old-account writes. Another risk was remounting a form on every saved version, which could cancel its navigation continuation. The shared transport and explicit workspace lifetime address those concrete design hazards.
+
+One browser test initially injected a server error before the preceding successful save had finished. Its failure snapshot exposed the synchronization mistake; the test now waits for the resulting step before injecting the next failure. This was a test timing issue, not evidence that the backend ignored validation.
+
+### 2.5 How challenges were addressed
+
+Profile save instants are truncated to microseconds, initialized together, and advanced monotonically so collection-only/unchanged writes still dirty the versioned owner. Real database tests assert reload equality and version advancement.
+
+Request contracts require all nullable groups and the version field. Validation completes before mutation; the transaction owns collection replacement. Conflict mapping is narrow, and the same safe API error structure serves validation, session/CSRF, conflict, and unexpected failures.
+
+Network failure after PUT does not prove rollback. The UI reads once and confirms only a newer matching snapshot, step, and intended status. Otherwise it retains edits and blocks further saving until explicit reload; even Cancel does not bypass that lock. No blind PUT retry or localStorage draft persistence was added.
+
+### 2.6 Testing and verification
+
+The full Maven run passed **176 tests**, with no failures/errors/skips, using a new isolated local PostgreSQL cluster. This includes 11 persistence tests, three real profile HTTP integration tests, and all 88 existing backend tests. Concurrent transaction tests cover first-create and version races; integration covers ownership, null/empty values, status transitions, rollback, CSRF, and PUT CORS.
+
+Frontend lint, TypeScript, and production build passed. The normal Playwright suite passed **107 cases**: 41 helper/transport tests and 66 desktop/mobile browser cases. A separate opt-in live suite passed **one browser case** using real Spring/PostgreSQL with cookies/CORS/CSRF and actual registration/save/resume/finish/edit/refresh/logout. Mocked test fixtures intercept every API route and do not fall through to a developer server.
+
+The installed Docker client had no running daemon, so native PostgreSQL binaries were used for a temporary loopback-only test cluster. No package was installed and no existing/Neon data was reset. The [verification guide](../testing/phase-2-verification.md) gives exact commands, opt-in guards, and limitations. Neon, production HTTPS, broader browsers, and assistive-technology conformance were not verified.
+
+### 2.7 Practical lessons
+
+- Model unanswered, intentionally empty, partial, skipped, and completed states explicitly before building persistence.
+- Exercise the actual database and HTTP mapper: mocks cannot establish timestamp precision, transaction races, or JSON defaults.
+- A session change is a boundary for pending work, not just a change to displayed account information.
+- Retry policy depends on certainty. A recognized rejected CSRF request is different from an uncertain delivered write.
+- Keep each milestone coherent and tested before committing; preserve the earlier preview history without claiming it was already integrated.
+- Record implemented profile foundations separately from future recommendation acceptance to avoid inflating delivery claims.
+
+### 2.8 Further study
+
+Production schema migrations, preference retention/deletion, bounded future vocabularies, immediate cross-tab session coordination, HTTPS and broader browser/accessibility checks, and consumer-side rule precedence remain open. Profile data is now ready for later consumers; no recommendation weights, wardrobe taxonomy, provider, or engine behavior was selected implicitly.
+
 ## Maintaining entries for future phases
 
-Append a new phase entry after a completed Phase 2, Phase 3, or later milestone. For a long phase, use dated sub-milestone entries when useful, then summarize at completion. Do not add speculative “lessons learned” for work that has not started.
+Append a new entry after Phase 3 or subsequent completed milestones. For a long phase, use dated sub-milestone entries when useful, then summarize at completion. Do not add speculative “lessons learned” for work that has not started.
 
 Use the same eight-part structure:
 
