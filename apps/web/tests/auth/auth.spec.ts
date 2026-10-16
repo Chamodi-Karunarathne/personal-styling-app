@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 const account = { id: 7, fullName: "Example User", email: "user@example.com" };
 const password = "ExamplePassword123";
+const frontendOrigin = `http://localhost:${process.env.PLAYWRIGHT_PORT ?? "3000"}`;
 type Failure = { status?: number; message?: string; fieldErrors?: Record<string, string>; abort?: boolean };
 
 async function mockBackend(page: Page) {
@@ -18,7 +19,7 @@ async function mockBackend(page: Page) {
     const request = route.request();
     const path = new URL(request.url()).pathname.split("/").at(-1)!;
     const headers = {
-      "Access-Control-Allow-Origin": "http://localhost:3000",
+      "Access-Control-Allow-Origin": frontendOrigin,
       "Access-Control-Allow-Credentials": "true",
       "Access-Control-Allow-Headers": "Content-Type, X-XSRF-TOKEN",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",

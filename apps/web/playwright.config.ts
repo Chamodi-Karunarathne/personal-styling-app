@@ -1,6 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const unitOnly = process.argv.some((argument) => argument === "--project=unit");
+const port = Number(process.env.PLAYWRIGHT_PORT ?? 3000);
+if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Invalid PLAYWRIGHT_PORT");
+const origin = `http://localhost:${port}`;
 
 export default defineConfig({
   timeout: 30_000,
@@ -10,7 +13,7 @@ export default defineConfig({
   retries: 0,
   reporter: "list",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: origin,
     trace: "off",
     screenshot: "off",
     video: "off",
@@ -21,8 +24,8 @@ export default defineConfig({
     { name: "mobile", testDir: "./tests/auth", use: { ...devices["Pixel 7"], viewport: { width: 390, height: 844 } } },
   ],
   webServer: unitOnly ? undefined : {
-    command: "pnpm exec next start --hostname localhost --port 3000",
-    url: "http://localhost:3000",
+    command: `pnpm exec next start --hostname localhost --port ${port}`,
+    url: origin,
     reuseExistingServer: false,
     timeout: 120_000,
   },
