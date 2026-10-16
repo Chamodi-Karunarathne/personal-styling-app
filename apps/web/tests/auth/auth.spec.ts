@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { emptyProfile } from "../../src/lib/profile/types";
 
 const account = { id: 7, fullName: "Example User", email: "user@example.com" };
 const password = "ExamplePassword123";
@@ -15,18 +16,23 @@ async function mockBackend(page: Page) {
     failures: {} as Record<string, Failure | undefined>,
     before: async (path: string) => { void path; },
   };
-  await page.route("http://localhost:8080/api/auth/**", async (route) => {
+  await page.route("http://localhost:8080/api/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.split("/").at(-1)!;
     const headers = {
       "Access-Control-Allow-Origin": frontendOrigin,
       "Access-Control-Allow-Credentials": "true",
       "Access-Control-Allow-Headers": "Content-Type, X-XSRF-TOKEN",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
       "Cache-Control": "no-store",
     };
     if (request.method() === "OPTIONS") {
       await route.fulfill({ status: 204, headers });
+      return;
+    }
+    if (new URL(request.url()).pathname.startsWith("/api/profile/")) {
+      await route.fulfill({ status: state.authenticated ? 200 : 401, headers,
+        json: state.authenticated ? emptyProfile() : { message: "Authentication is required" } });
       return;
     }
     const requestHeaders = await request.allHeaders();

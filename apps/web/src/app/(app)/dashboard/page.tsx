@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { useSession } from "@/components/auth/session-provider";
 import { Button } from "@/components/ui/button";
 import { readableError } from "@/lib/api/auth-client";
+import { ProfileEntry } from "@/components/profile/profile-workspace";
 
 export default function DashboardPage() {
   const { session, logout } = useSession();
@@ -45,6 +46,7 @@ export default function DashboardPage() {
           <div><dt className="font-medium">Email address</dt><dd className="mt-1 break-all text-muted-foreground">{user.email}</dd></div>
           <div><dt className="font-medium">Account ID</dt><dd className="mt-1 text-muted-foreground">{user.id}</dd></div>
         </dl>
+        <ProfileEntry />
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <Button type="button" disabled={pending} onClick={signOut} className="h-12 rounded-lg px-6">
           {pending ? "Signing out…" : "Sign out"}

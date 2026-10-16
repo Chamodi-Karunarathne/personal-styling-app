@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { PreferenceFields } from "@/components/profile/preference-fields";
 import { ProfileReview } from "@/components/profile/profile-review";
 import { ApiError, readableError } from "@/lib/api/auth-client";
+import { StaleSessionError } from "@/lib/api/session-client";
 import { INITIAL_CATALOG } from "@/lib/profile/catalog";
 import { STEPS, clonePreferences, emptyPreferences, type PreferenceCatalog, type ProfileSnapshot, type ProfileWrite, type StepCode } from "@/lib/profile/types";
 import { validatePreferences } from "@/lib/profile/validation";
@@ -86,7 +87,9 @@ export function OnboardingFlow({ catalog = INITIAL_CATALOG, initial, onSave, onE
       if (!mounted.current) return;
       if (failure instanceof ApiError) {
         setErrors(failure.fieldErrors);
-        setConflict(failure.status === 409);
+        setConflict(failure.status === 409 || failure.uncertain || failure instanceof StaleSessionError);
+        const invalidStep = STEPS.find((candidate) => candidate.groups.some((key) => failure.fieldErrors[key] || failure.fieldErrors[`preferences.${key}`]));
+        if (invalidStep) setStepCode(invalidStep.code);
       }
       setError(readableError(failure));
     } finally {
@@ -121,7 +124,7 @@ export function OnboardingFlow({ catalog = INITIAL_CATALOG, initial, onSave, onE
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-x-5 gap-y-1">
             <Button type="button" variant="link" disabled={pending || conflict} onClick={() => void save("SAVE", stepCode, true)} className="min-h-11 px-0">Save and exit</Button>
-            <Button type="button" variant="link" disabled={pending || conflict} onClick={() => void save("SKIP", stepCode, true)} className="min-h-11 px-0">Skip onboarding</Button>
+            <Button type="button" variant="link" disabled={pending || conflict || initial?.onboardingStatus === "COMPLETED"} onClick={() => void save("SKIP", stepCode, true)} className="min-h-11 px-0">Skip onboarding</Button>
           </div>
         </form>
       </section>

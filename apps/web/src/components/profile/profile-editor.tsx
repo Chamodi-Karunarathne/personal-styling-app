@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "@/components/auth/session-provider";
 import { Button } from "@/components/ui/button";
 import { ApiError, readableError } from "@/lib/api/auth-client";
+import { StaleSessionError } from "@/lib/api/session-client";
 import { INITIAL_CATALOG } from "@/lib/profile/catalog";
 import { GROUP_KEYS, clonePreferences, emptyProfile, type PreferenceCatalog, type ProfileSnapshot, type ProfileWrite } from "@/lib/profile/types";
 import { validatePreferences } from "@/lib/profile/validation";
@@ -66,7 +67,7 @@ export function ProfileEditor({ catalog = INITIAL_CATALOG, initial, onSave, onEx
       setMessage("Your styling preferences have been saved.");
     } catch (failure) {
       if (!mounted.current) return;
-      if (failure instanceof ApiError) { setErrors(failure.fieldErrors); setConflict(failure.status === 409); }
+      if (failure instanceof ApiError) { setErrors(failure.fieldErrors); setConflict(failure.status === 409 || failure.uncertain || failure instanceof StaleSessionError); }
       setError(readableError(failure));
     } finally {
       submitting.current = false;
@@ -77,7 +78,9 @@ export function ProfileEditor({ catalog = INITIAL_CATALOG, initial, onSave, onEx
   function cancel() {
     if (pending || (dirty && !window.confirm("Discard your unsaved preference changes?"))) return;
     setPreferences(clonePreferences(snapshot.preferences));
-    setErrors({}); setError(null); setConflict(false); setMessage("Your unsaved changes have been discarded.");
+    setErrors({});
+    if (!conflict) setError(null);
+    setMessage("Your unsaved changes have been discarded.");
     onExit?.();
   }
 

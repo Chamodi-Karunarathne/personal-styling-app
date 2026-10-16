@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { ProfileEditor } from "@/components/profile/profile-editor";
+import { ProfileWorkspace } from "@/components/profile/profile-workspace";
 
 export const metadata: Metadata = { title: "Your styling profile | Personal Styling" };
 
 export default function ProfilePage() {
-  return <ProfileEditor />;
+  return <ProfileWorkspace mode="editor" />;
 }

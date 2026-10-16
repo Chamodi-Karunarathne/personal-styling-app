@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
+import { ProfileWorkspace } from "@/components/profile/profile-workspace";
 
 export const metadata: Metadata = { title: "Your styling preferences | Personal Styling" };
 
 export default function OnboardingPage() {
-  return <OnboardingFlow />;
+  return <ProfileWorkspace mode="onboarding" />;
 }
