@@ -18,14 +18,14 @@ export function ProfileReview({ preferences, catalog, onEdit, disabled = false }
           return typeof choice === "string" ? label : `${label} (${choice.strength === "REQUIRED" ? "Required" : "Preferred"})`;
         });
         return (
-          <div key={group.key} className="flex flex-wrap items-start justify-between gap-2 py-4">
-            <div className="min-w-0 flex-1">
-              <dt className="text-sm font-medium">{group.label}</dt>
+          <div key={group.key} className="min-w-0 py-4">
+              <dt className="flex flex-wrap items-center justify-between gap-2 text-sm font-medium">
+                <span>{group.label}</span>
+                {onEdit && step && <Button type="button" variant="link" disabled={disabled} onClick={() => onEdit(step.code)} className="min-h-11 px-2" aria-label={`Edit ${group.label.toLowerCase()}`}>Edit</Button>}
+              </dt>
               <dd className="mt-1 break-words text-sm leading-relaxed text-muted-foreground">
                 {values === null ? "Unanswered" : values.length === 0 ? "No preference" : labels.join(", ")}
               </dd>
-            </div>
-            {onEdit && step && <Button type="button" variant="link" disabled={disabled} onClick={() => onEdit(step.code)} className="min-h-11 px-2" aria-label={`Edit ${group.label.toLowerCase()}`}>Edit</Button>}
           </div>
         );
       })}

@@ -17,13 +17,15 @@ export function PreferenceFields({ preferences, catalog, keys, onChange, errors 
   function toggle(key: PreferenceKey, code: string, selected: boolean) {
     if (key === "coverage") {
       const choices = preferences.coverage ?? [];
+      const remaining = choices.filter((choice) => choice.code !== code);
       onChange({ ...preferences, coverage: selected
         ? [...choices, { code, strength: "PREFERENCE" }]
-        : choices.filter((choice) => choice.code !== code) });
+        : remaining.length ? remaining : null });
       return;
     }
     const choices = preferences[key] ?? [];
-    onChange({ ...preferences, [key]: selected ? [...choices, code] : choices.filter((choice) => choice !== code) });
+    const remaining = choices.filter((choice) => choice !== code);
+    onChange({ ...preferences, [key]: selected ? [...choices, code] : remaining.length ? remaining : null });
   }
 
   return (
