@@ -21,6 +21,8 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import com.chamodi.styling.auth.exception.EmailAlreadyExistsException;
 import com.chamodi.styling.common.dto.ApiErrorResponse;
+import com.chamodi.styling.profile.exception.ProfileConflictException;
+import com.chamodi.styling.profile.exception.ProfileValidationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
@@ -33,6 +35,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler(EmailAlreadyExistsException.class)
 	public ResponseEntity<Object> handleDuplicateEmail(EmailAlreadyExistsException exception, WebRequest request) {
 		return error(HttpStatus.CONFLICT, "Email is already registered", Map.of(), request);
+	}
+
+	@ExceptionHandler(ProfileValidationException.class)
+	public ResponseEntity<Object> handleInvalidProfile(ProfileValidationException exception, WebRequest request) {
+		return error(HttpStatus.BAD_REQUEST, "Validation failed", exception.getFieldErrors(), request);
+	}
+
+	@ExceptionHandler(ProfileConflictException.class)
+	public ResponseEntity<Object> handleProfileConflict(ProfileConflictException exception, WebRequest request) {
+		return error(HttpStatus.CONFLICT, "Your preferences changed elsewhere. Reload before saving again", Map.of(), request);
 	}
 
 	@Override
