@@ -27,6 +27,12 @@ export async function mockProfileBackend(page: Page) {
       await route.fulfill({ status: 200, headers: { ...headers, "Set-Cookie": `XSRF-TOKEN=${state.token}; Path=/; SameSite=Lax` },
         json: { headerName: "X-XSRF-TOKEN", token: state.token } }); return;
     }
+    if (path === "/api/auth/login") {
+      const requestHeaders = await request.allHeaders();
+      if (requestHeaders["x-xsrf-token"] !== state.token) { await error(403, "Invalid or missing CSRF token"); return; }
+      state.authenticated = true;
+      await route.fulfill({ status: 200, headers, json: state.account }); return;
+    }
     if (!state.authenticated) { await error(401, "Authentication is required"); return; }
     if (path === "/api/auth/me") { await route.fulfill({ status: 200, headers, json: state.account }); return; }
     if (path === "/api/profile/options") { await route.fulfill({ status: 200, headers, json: INITIAL_CATALOG }); return; }
