@@ -4,9 +4,9 @@ Personal Styling & Outfit Recommendation Application
 
 | Document control | Value |
 | --- | --- |
-| Baseline | 1.3 — Phase 2E appearance and fit implementation verified locally |
+| Baseline | 1.4 — Phase 2 post-audit recovery, navigation, and verification fixes |
 | Date | 2026-10-17 |
-| Evidence snapshot | feature/phase-2-user-onboarding through 0d37a4c; Phase 0, Phase 1, Phase 2 and Phase 2E delivered |
+| Evidence snapshot | feature/phase-2-user-onboarding through 843921c; Phase 2A–2E and post-audit fixes delivered |
 | Document state | Phase 2 and Phase 2E owner-approved; future product scope/decisions remain proposals |
 | Maintainer / decision owner | Individual project developer / product owner |
 | Related documents | [Documentation index](../README.md); [requirements traceability](requirements-traceability.md) |
@@ -253,7 +253,7 @@ The system shall require a matching CSRF cookie/header for authentication POSTs 
 The system shall restore browser authentication from GET /api/auth/me and reconcile expiration or uncertain authentication outcomes.
 
 - **Inputs / outputs:** Input: credentialed session check on initial load, focus/visibility restoration, or private-route entry. Output: safe account, signed-out state, or retryable connection error.
-- **Validation / errors:** Treat /me 401 as signed out; do not treat network/500 failure as proof of logout. Ignore stale checks superseded by authentication mutations.
+- **Validation / errors:** Treat /me 401 as signed out; do not treat network/500 failure as proof of logout. Temporarily hide and make protected content inert, suspend account-bound requests, and keep drafts in memory until the same account is verified. Confirmed sign-out/account changes discard those drafts. Ignore stale checks superseded by authentication mutations.
 - **Acceptance:** Refreshing an authenticated dashboard restores its identity. Expiration redirects to Login with a sign-in notice. Delayed old checks cannot override a newer login/logout decision.
 - **Evidence:** [AuthController][controller], [SessionProvider][provider], [Typed Fetch client][client]; tests: [SessionAuthenticationTests][tSession], [Frontend auth browser tests][tBrowser], [Fetch client tests][tClient].
 
@@ -361,7 +361,7 @@ The system shall distinguish user-designated mandatory restrictions from prefere
 The system shall allow the profile owner to review and update saved styling preferences without editing account identity/passwords.
 
 - **Inputs / outputs:** A complete preference replacement with the last returned version; output is the updated saved profile. Saved values are available to future recommendation consumers, which remain planned under FR-ONB-006 and FR-REC requirements.
-- **Validation / errors:** Invalid/unauthenticated changes are rejected. Genuine version conflicts preserve local edits and require reload. Uncertain writes are reconciled with GET, never blindly replayed. Cancel discards edits without bypassing conflict locks.
+- **Validation / errors:** Invalid/unauthenticated changes are rejected. Genuine version conflicts preserve local edits and require reload. Uncertain writes are reconciled with GET, never blindly replayed. Cancel discards edits without bypassing conflict locks. Browser Back/Forward retains dirty drafts and their original revisions in account-scoped memory; leaving during a write requires safe reload on return. Styling conflict reload must not remount the appearance editor or interrupt its writes. Full document unload still warns; memory drafts do not survive a confirmed reload/tab closure.
 - **Acceptance:** Save, refresh, and read back changed choices; preserve null versus []; reject stale versions without partial writes; account A state/queued writes cannot be accepted under account B's managed session. Future recommendation use and historical-outfit behavior are verified when those modules exist.
 - **Evidence:** [Profile editor][profileEditor], [bound profile client][profileClient], [profile service][profileService]; [editor tests][tProfileEditor], [transport tests][tProfileClient], [integration browser tests][tProfileBrowser], [HTTP integration][tProfileHttp].
 - **Decision:** DEC-002 resolved for profile editing; broader taxonomy/consumer rules remain open.
@@ -988,7 +988,7 @@ The system shall let the owner confirm deletion of their entire appearance profi
 
 - **Inputs / outputs:** DELETE with observed version; success without appearance payload.
 - **Validation / errors:** Absent deletion is idempotent; an existing record requires the matching version. Uncertain deletion is reconciled by a read, never blindly retried.
-- **Acceptance:** After confirmed deletion GET is empty; styling preferences and authentication still work. Stale deletion cannot remove newer details.
+- **Acceptance:** After confirmed deletion GET is empty; styling preferences and authentication still work. Recoverable cached appearance drafts/baselines are cleared, including onboarding, while unsaved styling choices remain. Stale deletion cannot remove newer details.
 - **Evidence:** [Appearance API](../api/styling-profile.md#appearance-profile), [source/test traceability](requirements-traceability.md), and [executed local verification](../testing/phase-2-verification.md#phase-2e-results).
 
 <a id="fr-appr-006"></a>

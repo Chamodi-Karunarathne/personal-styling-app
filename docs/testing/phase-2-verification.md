@@ -39,7 +39,7 @@ $env:PROFILE_TEST_DB_PASSWORD = $env:DB_PASSWORD
 .\mvnw.cmd '-Ddebug=false' test
 ```
 
-The three profile integration classes require explicit opt-in and reject URLs outside `jdbc:postgresql://127.0.0.1:<port>/phase2_test`. They create synthetic accounts/profile rows and concurrent transactions. Schema management is update, not drop/recreate. The existing application-context test uses `DB_*`; supply the same isolated database. Without opt-in, the current 23 profile integration tests (19 persistence and four HTTP) are skipped; report that honestly. Database startup/provisioning is intentionally outside the test code, with no new test-container dependency.
+The three profile integration classes require explicit opt-in and reject URLs outside `jdbc:postgresql://127.0.0.1:<port>/phase2_test`. They create synthetic accounts/profile rows and concurrent transactions. Schema management is update, not drop/recreate. The existing application-context test uses `DB_*`; supply the same isolated database. Without opt-in, the current 24 profile integration tests (20 persistence and four HTTP) are skipped; report that honestly. Database startup/provisioning is intentionally outside the test code, with no new test-container dependency.
 
 The completed run used a temporary native PostgreSQL cluster because the installed Docker client had no available daemon. The temporary API and cluster were stopped after verification; no existing services or Neon databases were reset.
 
@@ -56,7 +56,7 @@ $env:PLAYWRIGHT_PORT = '3100'
 pnpm test
 ```
 
-Choose a free port; default is 3000. Playwright refuses to reuse a running server. Normal browser fixtures intercept all `/api/**` calls and never fall through to a running developer backend. No Spring server/Neon is required. `pnpm test:unit` runs the current 50 helper tests without a browser server.
+Choose a free port; default is 3000. Playwright refuses to reuse a running server. Normal browser fixtures intercept all `/api/**` calls and never fall through to a running developer backend. No Spring server/Neon is required. `pnpm test:unit` runs the current 54 helper tests without a browser server.
 
 ## Separate real browser check
 
@@ -122,7 +122,7 @@ No real Neon test, production HTTPS deployment, Firefox/Safari matrix, assistive
 
 ## Phase 2E results
 
-Executed 2026-10-17 after appearance implementation, through verification commit `0d37a4c`. Earlier results above remain the original Phase 2 historical snapshot.
+Executed 2026-10-17 after appearance implementation, through verification commit `0d37a4c`. Earlier results above remain the original Phase 2 historical snapshot. This section records the initial Phase 2E snapshot; current results are in [Post-audit verification](#post-audit-verification).
 
 | Check | Exact command / selection | Result |
 | --- | --- | --- |
@@ -180,3 +180,50 @@ ORDER BY updated_at DESC;
 ```
 
 Deletion removes the live appearance row; it is not a claim of erasing database backups or provider logs. Retention/backup policy needs a production decision. Neon, HTTPS/Secure-cookie deployment, Safari/Firefox, screen-reader conformance, and load testing remain unverified. There is no AI/external appearance transfer, inference, rating, outfit engine, or garment-fit calculation.
+
+## Post-audit verification
+
+Executed 2026-10-17 on `feature/phase-2-user-onboarding`, through implementation commit `843921c`. The earlier result tables remain historical snapshots. These are the current results after session recovery, history navigation, independent reload, concurrency, legacy compatibility, focus, and cached-deletion fixes.
+
+| Check | Exact command / environment | Result |
+| --- | --- | --- |
+| Complete backend | `.\mvnw.cmd '-Ddebug=false' test`, isolated `DB_*` and `PROFILE_*` settings above | **244 passed**, 0 failures/errors/skips, including full application context |
+| PostgreSQL persistence | StylingProfilePersistenceTests and AppearancePersistenceTests, included above | **20 passed**: 11 styling + 9 appearance |
+| Real HTTP integration | StylingProfileHttpIntegrationTests, included above | **4 passed**; total opt-in integration coverage is 24 tests |
+| Maven package | `.\mvnw.cmd '-DskipTests' package` after the complete test run | Passed; packaging did not rerun tests |
+| Frontend lint | `pnpm lint` | Passed |
+| Frontend types | `pnpm typecheck` | Passed |
+| Production build | `$env:NEXT_PUBLIC_API_BASE_URL='http://localhost:8080'; pnpm build` | Passed |
+| Deterministic frontend | `$env:PLAYWRIGHT_PORT='3100'; pnpm test` | **178 passed**: 54 helper/transport + 124 desktop/mobile browser cases |
+| Real local browser | `$env:LIVE_PROFILE_TESTS='true'; $env:PLAYWRIGHT_PORT='3101'; pnpm exec playwright test --config playwright.live.config.ts`, following the live API-origin build above | **2 passed**, real Spring Boot/PostgreSQL, no mocked backend |
+| Restore normal build | `$env:NEXT_PUBLIC_API_BASE_URL='http://localhost:8080'; pnpm build` after live verification | Passed |
+| Patch hygiene | `git diff --check` and `git diff --cached --check` per milestone | Passed |
+
+The backend and live browser used the same dedicated loopback-only PostgreSQL 18 `phase2_test` database; API port 8081 and frontend port 3101 were reserved for live browser checks. Only synthetic test accounts/data were used. Task-owned Spring Boot and PostgreSQL services were stopped afterward, with test data retained. No existing database was reset, no package was installed, no Neon connection was made, and no production HTTPS result is claimed. Generated artifacts and local logs are excluded from commits.
+
+### Added regression coverage
+
+- [Session recovery](../../apps/web/tests/auth/session-recovery.spec.ts): dirty profile and onboarding drafts survive background `/me` 503 and successful same-account retry. Unverified forms are hidden and inert; confirmed 401/logout or a different account clears their drafts.
+- [Transport](../../apps/web/tests/unit/profile-client.spec.ts): a failed verification suspends the account-bound transport before queued writes can proceed. Same-account verification is required before continuing.
+- [Account drafts](../../apps/web/tests/unit/account-drafts.spec.ts) and [history navigation](../../apps/web/tests/auth/profile-history.spec.ts): native Back/Forward preserves dirty styling, appearance, and wizard state with original revisions; clean forms load fresh data, explicit discard and logout clear drafts, and interrupted writes require reconciliation. Deleting saved personal details also clears recoverable appearance drafts without erasing unsaved styling choices.
+- [Independent reload](../../apps/web/tests/auth/profile-reload.spec.ts): delayed appearance writes survive styling conflict reload; failed styling reload retains both editors and can be retried without erasing unrelated changes.
+- [Appearance persistence](../../apps/api/src/test/java/com/chamodi/styling/profile/appearance/AppearancePersistenceTests.java): competing real transactions both read the initial database state before a barrier releases their writes. First creation, concurrent updates, and deletion versus update exercise actual uniqueness/optimistic-lock races. Service tests separately cover application-level conflict mapping.
+- [Legacy onboarding](../../apps/web/tests/auth/appearance-onboarding.spec.ts): a fixture that begins already COMPLETED with the old payload remains completed, opens Review directly, and keeps its original completion time without requiring an appearance write.
+- [Repeated validation](../../apps/web/tests/auth/validation-focus.spec.ts): keyboard submission of the same invalid values twice refocuses the error summary in styling, appearance, and onboarding forms, without an API write.
+
+During implementation, an existing wizard test caught heading focus overriding the new error-summary focus after a step change. Moving heading focus into the layout effect restored the intended ordering; the complete frontend suite was rerun successfully. Recovery tests also needed scoped alert selectors and an explicit wait for verified visible content rather than only checking a hidden retained control. No failing tests were excluded.
+
+### Manual post-audit checks
+
+Use an authorized development account. Do not capture or share preference payloads, cookies, CSRF values, or HAR files.
+
+1. Make unsaved styling and personal edits. Temporarily block only `/api/auth/me` in browser developer tools, then refocus the tab. A verification error must hide and disable protected forms. Unblock the request and retry: the same verified account must recover both drafts. Repeat from onboarding. Restarting Spring Boot may instead lose its in-memory session and return 401; that must discard drafts, not restore an unverified account.
+2. Navigate away with browser Back and return with Forward. Check both editors, wizard step, choices, and original versions. Repeat clean navigation and confirm it reads fresh server data. Explicit dashboard-link Cancel must retain edits; confirming discard must clear them.
+3. In another tab, save a styling change to create a conflict. Start a personal-details save with a delayed request, then reload the conflicted styling data. The personal save and its status must remain intact. A failed styling reload must leave both drafts available for recovery.
+4. Submit the same invalid values twice using the keyboard in each form. Focus must return to the error summary each time; field associations and mobile layout must remain usable.
+5. Leave an onboarding draft with dirty personal and styling values in history. Delete saved personal details from `/profile`, then return to onboarding. The personal draft must be cleared while styling choices remain. Failed or unconfirmed deletion must not silently discard edits.
+6. Confirm logout, session expiration, and switching accounts discard prior account drafts; an unverified or different account must never display them.
+
+Drafts exist only in account-scoped memory for the current document. Browser Back/Forward is supported without patching the History API or relying on unsupported Next.js navigation blockers. A confirmed full reload/tab close discards unsaved drafts after the existing unload warning; this is not persistent offline storage. An interrupted write remains locked for explicit reconciliation instead of being automatically replayed.
+
+Known boundaries remain: another tab can change the cookie between an ownership preflight and a request, so preflight is not an atomic cross-tab authorization guarantee; the backend remains authoritative. Production migrations/retention, Neon, HTTPS/Secure cookies, wider browser coverage, and screen-reader conformance still need their separate verification. No Figma redesign or new product feature was included.

@@ -7,7 +7,7 @@ This directory covers the entire intended Personal Styling & Outfit Recommendati
 - [Software Requirements Specification](requirements/SRS.md): product scope, 66 functional and 26 non-functional requirements, interfaces/data/rules, 13 use cases, and 18 decision entries (DEC-002 resolved; DEC-003/004 partly resolved).
 - [Requirements traceability](requirements/requirements-traceability.md): all 92 FR/NFR IDs mapped to implementation/test evidence or explicitly pending verification.
 
-Baseline 1.0 was prepared on 2026-10-16 after Phase 1. Revision 1.1 records Phase 2; revision 1.3, dated 2026-10-17, records the implemented owner-approved Phase 2E appearance extension. Future priorities and decisions remain proposals. Actual local verification is recorded separately from implementation status and production/Neon claims.
+Baseline 1.0 was prepared on 2026-10-16 after Phase 1. Revision 1.1 records Phase 2; revision 1.3 records Phase 2E; revision 1.4, dated 2026-10-17, records post-audit recovery/navigation and verification fixes. Future priorities and decisions remain proposals. Actual local verification is recorded separately from implementation status and production/Neon claims.
 
 ## Existing implementation and testing guides
 

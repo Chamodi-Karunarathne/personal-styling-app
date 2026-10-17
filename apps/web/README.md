@@ -177,8 +177,27 @@ the result. A failed reload also shows its error. Personal details save before
 styling progress when both changed; a failed second request is disclosed as partial
 success. The resources are not saved atomically together.
 
-Current checks: 50 helper tests plus 94 mocked desktop/mobile browser cases;
+Current checks: 54 helper tests plus 124 mocked desktop/mobile browser cases;
 two separate live browser cases passed against isolated local Spring/PostgreSQL.
-See [current verification](../../docs/testing/phase-2-verification.md#phase-2e-results)
+See [current verification](../../docs/testing/phase-2-verification.md#post-audit-verification)
 and [appearance contracts](../../docs/api/styling-profile.md#appearance-profile)
 for exact commands and pending Neon/production checks.
+
+## Post-audit draft recovery and navigation
+
+Temporary background session-check failures hide and make protected content inert,
+suspend profile requests, and retain mounted drafts. Try again restores them only
+after the same account is verified. A confirmed 401/logout or account change clears
+draft memory. This does not relax Spring Security authorization or CSRF checks.
+
+App Router Back/Forward preserves dirty/conflicted drafts in account-scoped memory,
+including their original server revisions. Clean navigation reads current data.
+Explicit discard still asks for confirmation; a confirmed full reload or closing
+the tab loses memory after the unload warning. No localStorage/sessionStorage or
+history interception is involved. Interrupted writes restore a reload-required
+uncertainty lock; they are never replayed automatically.
+
+Styling conflict reload operates independently of personal edits/writes. Confirmed
+appearance deletion removes cached personal drafts without removing styling choices.
+Repeated validation failures refocus the error summary. Current execution evidence
+and limitations are in [post-audit verification](../../docs/testing/phase-2-verification.md#post-audit-verification).

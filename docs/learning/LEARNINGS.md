@@ -27,7 +27,8 @@ The [root README](../../README.md) explains how to run the project. The [SRS](..
 5. [Documentation practices after Phase 1](#documentation-practices-after-phase-1)
 6. [Phase 2 — Onboarding and Styling Profile Management](#phase-2--onboarding-and-styling-profile-management)
 7. [Phase 2E — Personal Appearance and Fit](#phase-2e--personal-appearance-and-fit)
-8. [Maintaining entries for future phases](#maintaining-entries-for-future-phases)
+8. [Phase 2 post-audit fixes](#phase-2-post-audit-fixes)
+9. [Maintaining entries for future phases](#maintaining-entries-for-future-phases)
 
 ## Phase 0 — Project Setup and Architecture
 
@@ -437,6 +438,56 @@ Frontend lint, typecheck, production builds, and **144 deterministic cases** pas
 ### 2E.8 Further study
 
 Reviewed production migrations, backup/retention deletion policy, immediate cross-tab coordination, HTTPS/Secure-cookie deployment, broader browser/assistive-technology checks, and evidence-based future garment/recommendation use remain open. Palette interest is stored intent only. No color exclusion, fit prediction, external AI transfer, or appearance-based ranking is implemented.
+
+## Phase 2 post-audit fixes
+
+Recorded 2026-10-17 through implementation commit `843921c`. This entry supplements the historical Phase 2/2E results rather than replacing them. See the [current verification evidence](../testing/phase-2-verification.md#post-audit-verification).
+
+### Audit.1 What was implemented
+
+Verified incremental commits preserve drafts during temporary session failures (`730cd2b`), retain edits across native Back/Forward navigation (`60e523f`), isolate styling conflict reload (`89df1e5`), strengthen database-race and completed-legacy tests (`2881bf7`), restore repeated validation focus (`90e579d`), and clear cached personal drafts after confirmed deletion (`843921c`). No backend production code, authentication contract, dependency, or approved visual design was changed.
+
+### Audit.2 Important technical concepts
+
+**Identity and verification are separate state.** A background network failure does not establish logout, but also does not justify leaving protected forms usable. The provider retains the last-known account for draft ownership, hides/inerts protected content, and suspends the transport until successful verification. Confirmed 401, logout, or account change clears account drafts. A shared queue must suspend writes before a failed verification releases its queue position.
+
+**A form draft includes its baseline.** Recoverable state needs original versions, error/conflict state, and the wizard position as well as field values. Restoring edited values against a newly fetched version could overwrite another writer. Pending writes cannot simply resume when a component remounts: their delivery may be uncertain, requiring explicit reconciliation.
+
+**A database race requires overlapping observations.** Starting two services together does not prove they both saw an absent or identical row before writing. The revised persistence tests use separate transactions, assert the same initial state, then release a barrier before competing writes. This exercises database constraints; separate unit tests verify application exception mapping.
+
+### Audit.3 Architectural decisions and tradeoffs
+
+The installed App Router provides no general supported blocker for browser history. Account-scoped, cloned drafts in provider-owned memory preserve edits without replacing native history, adding persistent storage, or building navigation loops. Only dirty/conflicted/pending snapshots are retained; clean visits read fresh data. Full reload or tab closure still discards unsaved memory after the existing warning.
+
+Styling conflict recovery now replaces only styling data in place. It does not remount the personal editor or cancel an unrelated appearance request. Small hooks share draft access and per-attempt error focus; the work avoids a broader form-framework refactor.
+
+### Audit.4 Observed challenges
+
+An existing onboarding test exposed an ordering bug when the shared error-focus hook ran before heading focus: a step change could focus the heading after focusing the validation summary. A recovery assertion also initially accepted checked controls that were still hidden during verification. Final review found that adding history memory introduced a new privacy edge: an old wizard appearance draft could outlive explicit personal-details deletion elsewhere.
+
+### Audit.5 How challenges were addressed
+
+Heading focus runs in the layout effect; error-summary focus runs afterward and is keyed by a failure-attempt counter, including identical error text. Browser recovery tests wait for verified visible content and scope alerts to the intended form. Confirmed appearance removal clears appearance editor memory and only the personal fields/baselines in a cached wizard, preserving unsaved styling choices. Unconfirmed deletion does not discard drafts.
+
+### Audit.6 Testing and verification
+
+The full Maven suite passed **244 tests**, with no failures/errors/skips, including the application context, **20 real PostgreSQL persistence tests**, and **four real HTTP tests**. Maven packaging passed afterward using `-DskipTests`; that command did not rerun tests. Frontend lint, typecheck, production builds, and **178 deterministic cases** passed: 54 helper/transport and 124 desktop/mobile browser cases. **Two real browser tests** passed against local Spring Boot and isolated PostgreSQL. The normal API-origin build was restored and task-owned services stopped.
+
+The [verification guide](../testing/phase-2-verification.md#post-audit-verification) records exact commands, added test files, manual recovery scenarios, and limitations. No failing test was excluded, no existing database was reset, and no Neon or production HTTPS verification is claimed.
+
+### Audit.7 Practical lessons
+
+- Preserving an account for recovery must not imply authorization to display or mutate its protected resources.
+- Cache lifetime, account identity, original revisions, explicit discard, and deletion semantics need one consistent policy.
+- Reloading one resource should not destroy a sibling resource's independent form state or pending write.
+- Repeated failures are distinct accessibility events even when their message is unchanged.
+- Test concurrency at the database read/write boundary, not only at thread startup.
+- Add tests starting from the legacy terminal state itself; a new draft reaching that state is different evidence.
+- Keep current verification totals separate from historical milestone results and distinguish mocked from live coverage.
+
+### Audit.8 Further study
+
+Immediate cross-tab session coordination, production migration/retention policy, HTTPS/Secure-cookie deployment, wider browsers, and assistive-technology conformance remain open. In-memory recovery deliberately does not provide persistence after a confirmed full reload or tab close. No recommendation feature or UI redesign was added by these audit fixes.
 
 ## Maintaining entries for future phases
 
