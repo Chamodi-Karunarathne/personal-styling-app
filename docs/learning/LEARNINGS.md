@@ -26,7 +26,8 @@ The [root README](../../README.md) explains how to run the project. The [SRS](..
 4. [Phase 1C — Frontend–Backend Integration](#phase-1c--frontendbackend-integration)
 5. [Documentation practices after Phase 1](#documentation-practices-after-phase-1)
 6. [Phase 2 — Onboarding and Styling Profile Management](#phase-2--onboarding-and-styling-profile-management)
-7. [Maintaining entries for future phases](#maintaining-entries-for-future-phases)
+7. [Phase 2E — Personal Appearance and Fit](#phase-2e--personal-appearance-and-fit)
+8. [Maintaining entries for future phases](#maintaining-entries-for-future-phases)
 
 ## Phase 0 — Project Setup and Architecture
 
@@ -378,6 +379,64 @@ The installed Docker client had no running daemon, so native PostgreSQL binaries
 ### 2.8 Further study
 
 Production schema migrations, preference retention/deletion, bounded future vocabularies, immediate cross-tab session coordination, HTTPS and broader browser/accessibility checks, and consumer-side rule precedence remain open. Profile data is now ready for later consumers; no recommendation weights, wardrobe taxonomy, provider, or engine behavior was selected implicitly.
+
+## Phase 2E — Personal Appearance and Fit
+
+Recorded 2026-10-17 on feature/phase-2-user-onboarding through verification commit `0d37a4c`. This extends the original Phase 2 entry above; its four-step and historical test counts remain accurate for that earlier milestone. Current contracts are in the [profile API](../api/styling-profile.md#appearance-profile), with [verification evidence](../testing/phase-2-verification.md#phase-2e-results).
+
+### 2E.1 What was implemented
+
+A separate optional appearance profile stores ten voluntary details: height, sizing note, self-described proportions, complexion/color choices, hair characteristics, and face shape. Owner-only GET/PUT/DELETE support empty reads, full nullable replacement, individual clearing, and independent deletion. /profile adds a separate editor. Onboarding adds Personal details and fit before Review, with skip, resume, review, and recovery across two resource saves.
+
+Requirements were committed before implementation: `0797b5c`, followed by a traceability-table formatting correction `4fa064a`. Verified milestones followed: persistence `ee6f290`, REST `ae35803`, editor `c7c5bba`, onboarding `f5b4716`, and regression/live verification `0d37a4c`. Each milestone was completed and checked before moving on; history was not reconstructed after implementing everything.
+
+### 2E.2 Important technical concepts
+
+**Optional data still needs a precise contract.** Every nullable property must be present on replacement writes. Missing differs from null; palette false differs from unanswered. An explicit all-null PUT can create a configured empty record, while GET of an absent record inserts nothing. Native fields and server validation agree on units, supported codes, and the 60-character sizing-note boundary.
+
+**Optimistic locking across deletion.** JPA @Version detects simultaneous writes, but a numeric version starting over after delete/recreate could match an old client snapshot. Appearance uses an internal lock version plus a fresh public UUID revision on each save. The UUID is a concurrency tag, not a custom session credential. Real PostgreSQL races confirm one first-creation winner and one safe conflict.
+
+**Two resources do not imply one transaction.** Appearance saves before styling progress. If the second request fails, the UI reports the first resource saved and retains remaining edits. It does not claim atomic completion or resend the already-confirmed first write. Uncertain delivery is reconciled by GET, with explicit reload when the result cannot be confirmed.
+
+### 2E.3 Architectural decisions and tradeoffs
+
+The appearance table references app_users directly, rather than styling_profiles. This supports independent deletion and accounts with no styling row without adding fields to User or changing account registration. Existing fit preferences remain in the styling profile. No extra measurements were added without a current garment use case; no age, weight, birth date, photos, ratings, or inference was implemented.
+
+Catalog codes and labels are server-owned and validated without deriving traits. The frontend reuses accessible controls for onboarding/editor and the established credentialed session/CSRF queue, immutable account scopes, and stale-request checks. Appearance stays out of authentication responses and browser storage; no external provider receives it.
+
+### 2E.4 Observed challenges
+
+Inspection of the real PostgreSQL schema showed its existing step CHECK allowed only STYLE, COMFORT, LIFESTYLE, REVIEW. Expanding the Java enum alone would not safely support old databases. The implementation instead adds a default-false appearance_step_pending column and keeps the stored REVIEW code; true means the new personal screen, false means original Review.
+
+Jackson 3 rejected an absent new primitive constructor boolean under its existing null-for-primitives rules. A nullable Boolean record component normalizes missing/null to false locally, preserving old JSON requests without weakening the global mapper. JSON and persistence tests reproduce the old payload/row compatibility.
+
+A conflict-reload UI failure initially kept the form locked but did not display the reload network error. Regression tests prompted an explicit retry error while preserving the form and lock. During test development, a broad age selector matched coverage, and an expiration assertion assumed a query string on /login; both assertions were corrected to reflect the actual UI/route. A Mockito throwing stub also needed doThrow when replacing an existing throwing stub, rather than re-invoking it during setup.
+
+### 2E.5 How challenges were addressed
+
+The additive resume flag avoids dropping the original step constraint. Old REVIEW drafts remain Review, completed users remain completed, and new drafts restore the personal step after Save and exit. Skipping does not mutate saved appearance. Separate resources retain independent versions, transactions, and delete actions.
+
+GET/PUT/DELETE use the authenticated principal only; expected revisions guard mutations. Known primary-key uniqueness and optimistic races become safe 409 responses, without mislabeling all database errors. Unknown fields are rejected; redacted string representations and existing logging restrictions keep payloads out of diagnostics. Save/cancel/delete controls, error focus, clear options, and confirmation reuse the approved visual system.
+
+### 2E.6 Testing and verification
+
+The complete Maven suite passed **243 tests**, with zero failures/errors/skips, against the isolated local PostgreSQL test database. It includes 19 persistence and four real HTTP integration tests. Appearance rules/JSON/MVC tests cover null/false, clearing, bounds/codes, unknown sensitive fields, ownership, CSRF, safe errors, and unchanged auth responses. PostgreSQL tests cover concurrency, delete/recreate, rollback, old onboarding states, and unchanged styling data.
+
+Frontend lint, typecheck, production builds, and **144 deterministic cases** passed (50 helpers, 94 desktop/mobile browser cases). **Two live browser cases** passed against real local Spring Boot/PostgreSQL, covering the old skip flow and new personal-step persistence, refresh, clear/delete, and independent accounts. A test assertion failed during development and was fixed/re-run; no failing test was excluded. Temporary task-owned services were stopped and the normal API-origin build restored. No Neon/production HTTPS or screen-reader conformance result is claimed; see the verification guide for exact commands.
+
+### 2E.7 Practical lessons
+
+- Minimize data before choosing field types: future usefulness alone does not justify collecting more.
+- Model absence, explicit empty saves, null, and false consistently across UI, JSON, and persistence.
+- Review existing database constraints before extending workflow enums; backward-compatible metadata can avoid destructive changes.
+- Check the actual JSON mapper's missing-property behavior rather than assuming a primitive default.
+- Separate-resource saves need honest partial-success recovery and protection from duplicate writes.
+- A delete action needs revision protection, independent ownership, and uncertainty handling as much as a save does.
+- Mocked cases establish deterministic failures; real database and browser runs establish different parts of the contract.
+
+### 2E.8 Further study
+
+Reviewed production migrations, backup/retention deletion policy, immediate cross-tab coordination, HTTPS/Secure-cookie deployment, broader browser/assistive-technology checks, and evidence-based future garment/recommendation use remain open. Palette interest is stored intent only. No color exclusion, fit prediction, external AI transfer, or appearance-based ranking is implemented.
 
 ## Maintaining entries for future phases
 

@@ -67,7 +67,7 @@ or sessionStorage. Cookie CSRF uses a double-submit comparison: rotation changes
 the browser cookie, but does not server-revoke an old matching cookie/header pair
 deliberately restored by a client.
 
-Development allows exactly `http://localhost:3000`, credentials, GET/POST/PUT/OPTIONS,
+Development allows exactly `http://localhost:3000`, credentials, GET/POST/PUT/DELETE/OPTIONS,
 and `Content-Type`/`X-XSRF-TOKEN` headers. It never reflects arbitrary origins or
 uses a wildcard origin with credentials. Configure one exact origin with
 `FRONTEND_ORIGIN` (scheme, host, optional port; no path or wildcard).
@@ -198,7 +198,14 @@ application-context test remains unchanged and needs the real DB environment.
 
 Frontend authentication integration and Phase 2 styling profiles are now implemented.
 The three authenticated profile endpoints reuse this session/CSRF architecture;
-credentialed CORS additionally permits PUT for the same exact frontend origin.
+credentialed CORS permits PUT and, for Phase 2E appearance deletion, DELETE for the same exact frontend origin.
+
+Phase 2E adds owner-only `GET/PUT/DELETE /api/profile/appearance`. PUT and DELETE
+require the same CSRF header/cookie flow; DELETE has a JSON body containing the
+observed revision. Authentication DTOs and principal/session contents remain
+unchanged. See the [appearance API](../../docs/api/styling-profile.md#appearance-profile)
+and [current verification](../../docs/testing/phase-2-verification.md#phase-2e-results)
+for nullable fields, independent deletion, compatibility, and actual local results.
 See [profile contracts](../../docs/api/styling-profile.md) and
 [Phase 2 verification](../../docs/testing/phase-2-verification.md) for persistence,
 ownership, and isolated database/live-browser testing. Auth response contracts remain unchanged.

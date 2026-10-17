@@ -4,10 +4,10 @@ Personal Styling & Outfit Recommendation Application
 
 | Document control | Value |
 | --- | --- |
-| Baseline | 1.2 — approved Phase 2E appearance requirements; implementation pending |
+| Baseline | 1.3 — Phase 2E appearance and fit implementation verified locally |
 | Date | 2026-10-17 |
-| Evidence snapshot | feature/phase-2-user-onboarding through 21d48f5; Phase 0, Phase 1, and Phase 2 delivered |
-| Document state | Phase 2 decisions owner-approved; future product scope/decisions remain proposals |
+| Evidence snapshot | feature/phase-2-user-onboarding through 0d37a4c; Phase 0, Phase 1, Phase 2 and Phase 2E delivered |
+| Document state | Phase 2 and Phase 2E owner-approved; future product scope/decisions remain proposals |
 | Maintainer / decision owner | Individual project developer / product owner |
 | Related documents | [Documentation index](../README.md); [requirements traceability](requirements-traceability.md) |
 
@@ -83,7 +83,7 @@ The primary audience is the project owner/developer. Reviewers, portfolio assess
 
 Current source, dependency manifests, and test definitions establish the implementation snapshot. [Frontend integration guide][webdoc] and [Backend session guide][apidoc] explain integration/testing. The root [Product backlog][roadmap] is an informal roadmap, not a confirmed set of stakeholder decisions. At the baseline 1.0 inspection, no root README, SRS, or requirements directory existed; subsequent milestones created them.
 
-Baseline 1.0 recorded the Phase 1 source snapshot without rerunning tests. Revision 1.1 records the owner-approved Phase 2 implementation and actual verification in the [Phase 2 guide](../testing/phase-2-verification.md). The backend guide now links current frontend/profile documentation; informal future epics remain proposed.
+Baseline 1.0 recorded the Phase 1 source snapshot without rerunning tests. Revision 1.1 records the owner-approved Phase 2 implementation and actual verification in the [Phase 2 guide](../testing/phase-2-verification.md). Revision 1.3 records the implemented optional appearance extension and local PostgreSQL/live browser verification. The backend guide links current frontend/profile documentation; informal future epics remain proposed.
 
 ## 2. Overall system description
 
@@ -105,7 +105,7 @@ The intended processing chain is: user-owned wardrobe + confirmed context and pr
 | Frontend integration | Typed Fetch client, session restoration/reconciliation, loading/errors, client private-route gate |
 | Dashboard | Safe account information, sign-out, and non-blocking Start/Resume/Edit preference entry points |
 | Forgot Password / social | UI present but reset submission and Google/Apple actions are explicitly unavailable |
-| Styling profile | Four-step optional onboarding; save/resume/skip/complete; profile editing; owner-bound versioned persistence and REST APIs |
+| Styling profile | Five-step optional onboarding; save/resume/skip/complete; separate styling and appearance editors/persistence; owner-bound versioned REST APIs |
 | Future product modules | No wardrobe, event, recommendation, saved-outfit, or feedback implementation |
 | Operational scope | Local/testable configuration; production profile exists, but production deployment and multi-instance continuity are not established |
 
@@ -130,8 +130,8 @@ Different fashion tastes, comfort/modesty choices, and wardrobes are user-suppli
 | /login | [Login page][login]: real session login |
 | /forgot-password | [Forgot Password page][forgot]: UI-only unavailable recovery, back link to Login |
 | /dashboard | [Minimal dashboard][dashboard]: protected account and styling setup entry |
-| /onboarding | [Onboarding page][onboarding]: protected four-step save/resume flow |
-| /profile | [Profile page][profilePage]: protected preference editor; identity read-only |
+| /onboarding | [Onboarding page][onboarding]: protected five-step save/resume flow with optional personal details |
+| /profile | [Profile page][profilePage]: protected styling and separate Personal Details & Fit editors; identity read-only |
 
 The (auth) and (app) route groups organize layouts without appearing in URLs. Wardrobe, planner, recommendations, and saved have no implemented pages. AuthShell/AuthLink/AuthField, SessionProvider/RequireAuth, Button/theme, shared preference controls, and the credentialed session transport are reused. The approved authentication design and navigation remain intact.
 
@@ -149,7 +149,7 @@ Secrets remain outside source control and frontend-public variables. Existing wo
 
 ## 3. System features and functional requirements
 
-There are 66 functional requirements. FR-AUTH-001 through FR-AUTH-012 and FR-ONB-001, FR-ONB-002, FR-ONB-004 are implemented. Other functional requirements remain planned or require clarification. Profile metadata supporting future recommendation requirements is not evidence of an implemented engine.
+There are 66 functional requirements. FR-AUTH-001 through FR-AUTH-012, FR-ONB-001, FR-ONB-002, FR-ONB-004 and FR-APPR-001 through FR-APPR-008 are implemented. Other functional requirements remain planned or require clarification. Profile metadata supporting future recommendation requirements is not evidence of an implemented engine.
 
 ### 3.1 Authentication and public entry
 
@@ -331,10 +331,10 @@ The system shall allow an authenticated user to enter optional style, color, fit
 
 **Priority:** Should. **Status:** Implemented.
 
-The system shall provide four optional steps (STYLE, COMFORT, LIFESTYLE, REVIEW) and distinct NOT_STARTED, IN_PROGRESS, SKIPPED, COMPLETED states without blocking Dashboard.
+The system shall provide five optional UI steps (STYLE, COMFORT, LIFESTYLE, APPEARANCE, REVIEW) and distinct NOT_STARTED, IN_PROGRESS, SKIPPED, COMPLETED states without blocking Dashboard.
 
 - **Inputs / outputs:** Explicit SAVE, SKIP, COMPLETE with version, resume step, and complete preference snapshot; output is the committed snapshot.
-- **Validation / errors:** Next saves before advancing; Back preserves local edits; Save and exit persists; Skip retains choices; Finish atomically completes even all-unanswered input. Failed saves preserve edits. Completed profiles remain completed on SAVE and cannot SKIP; first completedAt is retained.
+- **Validation / errors:** Next saves before advancing; Back preserves local edits; Save and exit persists; Skip retains choices; Finish atomically completes the styling resource even with all-unanswered input. Appearance is a separate resource: changed appearance saves first, then styling progress; a failed second save must disclose partial success and preserve edits. Completed profiles remain completed on SAVE and cannot SKIP; first completedAt is retained.
 - **Acceptance:** Refresh restores the saved step/choices. Dashboard offers Start, Resume, or Edit. GET alone creates no row. Only an explicit COMPLETE finishes; no checkbox change auto-saves. Stale writes conflict instead of overwriting.
 - **Evidence:** [Onboarding flow][onboardingFlow], [profile service][profileService]; [service tests][tProfileService], [onboarding browser tests][tOnboarding], [live browser test][tProfileLive].
 - **Decision:** DEC-002 resolved; future recommendation access/constraint precedence is not implemented by this flow.
@@ -924,103 +924,111 @@ The system shall provide password recovery only after a secure reset flow and de
 
 ### 3.9 Optional personal appearance and fit — approved Phase 2E
 
-These requirements are approved for this milestone but remain Planned until implementation and verification. Personal data minimization takes precedence over speculative future usefulness. Initial values are self-described, with no judgment or inference. The API/data design is detailed after implementation.
+These owner-approved requirements are implemented and verified locally. Personal data minimization takes precedence over speculative future usefulness. Values are self-described, with no judgment or inference. See the [appearance contract](../api/styling-profile.md#appearance-profile) and [Phase 2E verification](../testing/phase-2-verification.md#phase-2e-results).
 
 <a id="fr-appr-001"></a>
 
 #### FR-APPR-001 — Optional fit and garment details
 
-**Priority:** Must. **Status:** Planned.
+**Priority:** Must. **Status:** Implemented.
 
 The system shall allow optional height in whole centimeters, a garment sizing note, and self-described proportions for future garment length/size personalization. Existing fit preferences shall be reused, not duplicated.
 
 - **Inputs / outputs:** Height, sizing note, proportions; a separate owner-bound appearance snapshot.
 - **Validation / errors:** Height must be a whole number from 50 to 260 cm (a broad input guard, not an ideal); note at most 60 characters; proportions from supported choices. Other measurements are deferred until a concrete garment use case exists.
 - **Acceptance:** All fields may be null. Valid values save/read back; invalid input preserves prior data. No appearance ranking, BMI, ideal weight, or desirability calculation exists.
+- **Evidence:** [Appearance API](../api/styling-profile.md#appearance-profile), [source/test traceability](requirements-traceability.md), and [executed local verification](../testing/phase-2-verification.md#phase-2e-results).
 
 <a id="fr-appr-002"></a>
 
 #### FR-APPR-002 — Self-declared appearance characteristics
 
-**Priority:** Must. **Status:** Planned.
+**Priority:** Must. **Status:** Implemented.
 
 The system shall accept optional self-selected skin tone/undertone, palette-suggestion interest, hair color/texture/length, and face shape.
 
 - **Inputs / outputs:** Nullable supported choices and optional yes/no palette interest; saved values and user-readable labels.
 - **Validation / errors:** Undertone offers Warm, Cool, Neutral, Unsure; face shape includes Unsure and Prefer not to specify; unsupported codes fail safely.
 - **Acceptance:** Users may omit or clear each characteristic. No characteristic is inferred from photographs, gender, ethnicity, or other unrelated information.
+- **Evidence:** [Appearance API](../api/styling-profile.md#appearance-profile), [source/test traceability](requirements-traceability.md), and [executed local verification](../testing/phase-2-verification.md#phase-2e-results).
 
 <a id="fr-appr-003"></a>
 
 #### FR-APPR-003 — Read and update personal details
 
-**Priority:** Must. **Status:** Planned.
+**Priority:** Must. **Status:** Implemented.
 
 The system shall let the authenticated owner read and replace their optional appearance details independently of styling preferences and account identity.
 
 - **Inputs / outputs:** GET and versioned complete PUT snapshot; current or empty representation.
 - **Validation / errors:** A missing GET inserts nothing; first explicit save creates; stale/missing expected versions conflict. Entire input validates before transactional mutation.
 - **Acceptance:** Create/read/update survive refresh; rejected writes make no partial change. Concurrent first creation is safe, and deleted/recreated records cannot accept an old version.
+- **Evidence:** [Appearance API](../api/styling-profile.md#appearance-profile), [source/test traceability](requirements-traceability.md), and [executed local verification](../testing/phase-2-verification.md#phase-2e-results).
 
 <a id="fr-appr-004"></a>
 
 #### FR-APPR-004 — Clear individual appearance fields
 
-**Priority:** Must. **Status:** Planned.
+**Priority:** Must. **Status:** Implemented.
 
 The system shall let users set individual appearance fields to null without changing other supplied appearance values or styling preferences.
 
 - **Inputs / outputs:** Complete appearance snapshot with explicit nullable fields; updated snapshot.
 - **Validation / errors:** Omitted fields must not silently become clearing requests. Empty sizing text is treated as unanswered; false palette interest differs from null.
 - **Acceptance:** Clear/save/refresh leaves the field unanswered while retaining other appearance values. Cancel discards only unsaved local edits.
+- **Evidence:** [Appearance API](../api/styling-profile.md#appearance-profile), [source/test traceability](requirements-traceability.md), and [executed local verification](../testing/phase-2-verification.md#phase-2e-results).
 
 <a id="fr-appr-005"></a>
 
 #### FR-APPR-005 — Delete appearance information independently
 
-**Priority:** Must. **Status:** Planned.
+**Priority:** Must. **Status:** Implemented.
 
 The system shall let the owner confirm deletion of their entire appearance profile without deleting their account, styling choices, or onboarding completion.
 
 - **Inputs / outputs:** DELETE with observed version; success without appearance payload.
 - **Validation / errors:** Absent deletion is idempotent; an existing record requires the matching version. Uncertain deletion is reconciled by a read, never blindly retried.
 - **Acceptance:** After confirmed deletion GET is empty; styling preferences and authentication still work. Stale deletion cannot remove newer details.
+- **Evidence:** [Appearance API](../api/styling-profile.md#appearance-profile), [source/test traceability](requirements-traceability.md), and [executed local verification](../testing/phase-2-verification.md#phase-2e-results).
 
 <a id="fr-appr-006"></a>
 
 #### FR-APPR-006 — Authenticated appearance ownership and privacy
 
-**Priority:** Must. **Status:** Planned.
+**Priority:** Must. **Status:** Implemented.
 
 The system shall derive appearance ownership exclusively from the existing authenticated principal and protect all modifying requests with existing CSRF/session controls.
 
 - **Inputs / outputs:** Current session and CSRF header/cookie pair; safe owner-only responses/errors.
 - **Validation / errors:** No owner ID in input; safe structured 400/401/403/409/500 responses; exact-origin CORS may add DELETE only as needed.
 - **Acceptance:** Two-account tests prove isolation. Appearance values never enter auth responses/principals, logs, URLs, or browser storage. Session/account changes invalidate pending work.
+- **Evidence:** [Appearance API](../api/styling-profile.md#appearance-profile), [source/test traceability](requirements-traceability.md), and [executed local verification](../testing/phase-2-verification.md#phase-2e-results).
 
 <a id="fr-appr-007"></a>
 
 #### FR-APPR-007 — Optional fifth onboarding step with backward compatibility
 
-**Priority:** Must. **Status:** Planned.
+**Priority:** Must. **Status:** Implemented.
 
 The system shall offer Personal details and fit between Lifestyle and Review, keeping all details optional and old onboarding records valid.
 
 - **Inputs / outputs:** Existing draft/completed styling snapshot and optional appearance record; five-step UI with resume state.
 - **Validation / errors:** Existing REVIEW remains review and COMPLETED remains completed; no mandatory re-onboarding. Skipping the appearance step preserves saved appearance. Separate endpoint saves must disclose partial success.
 - **Acceptance:** Users can finish without appearance data. Save/Next/Back/Skip/exit and refresh work. A failed second-resource save retains edits and accurately identifies already-saved progress; no false atomic success.
+- **Evidence:** [Appearance API](../api/styling-profile.md#appearance-profile), [source/test traceability](requirements-traceability.md), and [executed local verification](../testing/phase-2-verification.md#phase-2e-results).
 
 <a id="fr-appr-008"></a>
 
 #### FR-APPR-008 — Recommendation integration boundary
 
-**Priority:** Must. **Status:** Planned.
+**Priority:** Must. **Status:** Implemented.
 
 The system shall store appearance details only as voluntary future personalization inputs during Phase 2E, with no automatic recommendation restriction or external transmission.
 
 - **Inputs / outputs:** Explicit appearance selections; owner-only persistence and presentation.
 - **Validation / errors:** No AI/provider calls, image inference, complexion-based color rejection, or appearance ratings.
 - **Acceptance:** Source/network tests show only the configured application API receives these fields; no outfit matching or appearance-based rule enforcement is claimed.
+- **Evidence:** [Appearance API](../api/styling-profile.md#appearance-profile), [source/test traceability](requirements-traceability.md), and [executed local verification](../testing/phase-2-verification.md#phase-2e-results).
 
 ## 4. External interface requirements
 
@@ -1046,6 +1054,9 @@ The following contracts are implemented in [AuthController][controller] and [Pro
 | GET /api/profile/options | Authenticated session | 200: supported catalog | 401; safe 500 |
 | GET /api/profile/me | Authenticated session; principal owner | 200: saved profile or virtual NOT_STARTED; no GET insert | 401; safe 500 |
 | PUT /api/profile/me | Authenticated session, CSRF, full versioned snapshot and intent | 200: committed profile | 400 invalid snapshot/state; 401; 403 CSRF; 409 version/creation race; safe 500 |
+| GET /api/profile/appearance | Authenticated session; principal owner | 200: appearance or virtual empty snapshot and catalog | 401; safe 500 |
+| PUT /api/profile/appearance | Session, CSRF, complete nullable details and expected UUID revision | 200: committed appearance | 400 fields/JSON; 401; 403; 409 stale/creation race; safe 500 |
+| DELETE /api/profile/appearance | Session, CSRF; JSON body with observed version | 204, including absent record | 400 JSON; 401; 403; 409 stale existing record; safe 500 |
 
 Other /api/** requests require authentication. Unexpected non-API backend access is denied; error dispatch is deliberately allowed for framework error handling. Unsupported methods on the public register/login paths reach MVC method handling. No JWT, refresh token, authentication cookie readable by JavaScript, or login redirect HTML is part of the API contract.
 
@@ -1086,7 +1097,7 @@ The backend uses Spring Security's SPA CSRF handling. Login rotates an existing 
 
 Cookie-based CSRF validates a matching cookie/header pair; it is not a server-revocable token registry. Rotation does not invalidate an old matching pair deliberately restored by a client. This is an existing mechanism characteristic, not a new single-use-token guarantee.
 
-Development accepts exactly http://localhost:3000, credentialed GET/POST/PUT/OPTIONS, and Content-Type/X-XSRF-TOKEN. localhost:3000 and localhost:8080 are different origins but the same site; substituting 127.0.0.1 or port 3001 does not match the configured origin. Production requires one exact FRONTEND_ORIGIN and Secure cookies with the prod profile. No wildcard or arbitrary reflected origins are allowed.
+Development accepts exactly http://localhost:3000, credentialed GET/POST/PUT/DELETE/OPTIONS, and Content-Type/X-XSRF-TOKEN. localhost:3000 and localhost:8080 are different origins but the same site; substituting 127.0.0.1 or port 3001 does not match the configured origin. Production requires one exact FRONTEND_ORIGIN and Secure cookies with the prod profile. No wildcard or arbitrary reflected origins are allowed.
 
 SameSite=Lax assumes same-site hosting; truly cross-site production topology is unresolved. CORS alone cannot change SameSite behavior. Next.js server-rendered data or Server Actions would require explicit server-side session verification; the current client guard is insufficient for them.
 
@@ -1094,7 +1105,7 @@ SameSite=Lax assumes same-site hosting; truly cross-site production topology is 
 
 [UserRepository][repository] uses Spring Data JPA against Neon PostgreSQL. Server environment variables DB_URL, DB_USERNAME, and DB_PASSWORD configure the connection; their values are intentionally absent from this document. Hibernate development schema management is currently update. No manual SQL migration strategy or production migration tool is established by this specification.
 
-Application tables are app_users plus styling_profiles, styling_profile_answers, and styling_profile_choices. The profile shares its owner primary key/foreign key, has @Version, status/step/timestamps, and answer/choice collections preserving null versus explicit empty. No existing account constraint is changed. Future conceptual entities are not finalized DDL.
+Application tables are app_users plus styling_profiles, styling_profile_answers, styling_profile_choices, and appearance_profiles. The profile shares its owner primary key/foreign key, has @Version, status/step/timestamps, and answer/choice collections preserving null versus explicit empty. No existing account constraint is changed. Future conceptual entities are not finalized DDL.
 
 ### 4.5 Proposed external services
 
@@ -1114,6 +1125,8 @@ No external provider is selected here. Local AI-generated development photograph
 There are 26 quality/engineering requirements. Implemented statuses below are deliberately limited to existing authentication behavior. App-wide accessibility, future ownership rules, performance targets, and operational guarantees remain work to verify.
 
 ### 5.1 Security
+
+
 
 <a id="nfr-sec-001"></a>
 
@@ -1220,11 +1233,12 @@ The frontend shall keep identity and CSRF application state in memory and shall 
 
 #### NFR-PRIV-004 — Appearance data minimization
 
-**Priority:** Must. **Status:** Planned.
+**Priority:** Must. **Status:** Implemented.
 
 Appearance collection shall exclude age, birth date, weight, images, inferred traits, and additional measurements without an approved functional use case. All supported fields shall be optional, clearable, and independently deletable, with no AI/external transmission in Phase 2E.
 
 - **Acceptance / verification:** Inspect DTO/schema/UI/network boundaries; reject unknown fields; test null, deletion, two-account access, auth response exclusion, and log redaction. Future retention/backup/legal policies remain under DEC-014; no legal compliance claim is made.
+- **Evidence:** [Appearance API](../api/styling-profile.md#appearance-profile), [source/test traceability](requirements-traceability.md), and [executed local verification](../testing/phase-2-verification.md#phase-2e-results).
 
 ### 5.3 Reliability
 
@@ -1315,11 +1329,12 @@ All animated flows shall respect prefers-reduced-motion; meaningful images shall
 
 #### NFR-ACC-003 — Accessible optional appearance controls
 
-**Priority:** Must. **Status:** Planned.
+**Priority:** Must. **Status:** Implemented.
 
 Personal Details & Fit controls shall use native labels, groups, clear optional units/choices, keyboard-accessible actions, visible focus, field-linked validation, and responsive presentation. Missing data must not be presented as a deficiency.
 
 - **Acceptance / verification:** Keyboard save/clear/delete confirmation; invalid-height focus/error association; mobile 360/390 and tablet/desktop overflow checks; five-step progress and review are understandable without motion or color alone. Full assistive-technology/browser conformance remains a separate acceptance decision.
+- **Evidence:** [Appearance API](../api/styling-profile.md#appearance-profile), [source/test traceability](requirements-traceability.md), and [executed local verification](../testing/phase-2-verification.md#phase-2e-results).
 
 ### 5.6 Usability and visual consistency
 
@@ -1422,7 +1437,7 @@ Before wardrobe and history collections are released, the system shall define an
 
 ## 6. Data requirements
 
-**Approved Phase 2E extension (Planned):** one independent optional appearance profile shall reference the account directly. GET/registration creates no record. Full nullable replacement, transactional validation, independent versioned deletion, and concurrency protection are required. A fresh public revision token after recreation must prevent old snapshots matching a newly created record. Styling preferences/identity remain separate. No destructive schema migration or new auth architecture is authorized.
+**Implemented Phase 2E extension:** `appearance_profiles` references `app_users` directly with a shared owner primary key/foreign key. Registration and GET create no record. Ten nullable fields support full replacement, transactional validation, versioned independent deletion, and optimistic concurrency. An internal JPA lock version and fresh public UUID revision per save prevent lost updates and stale delete/recreate matches. The UUID is a concurrency tag, not an authentication token. Styling preferences and account identity remain separate. Hibernate update adds the table and a non-null `appearance_step_pending` column defaulting to false on styling profiles; existing step constraints/data remain unchanged. No destructive schema operation was performed.
 
 
 ### 6.1 Existing persistent model
@@ -1448,6 +1463,7 @@ The implemented profile relationship is identified explicitly; all other rows ar
 
 | Concept | Relationship / purpose | Decisions still needed |
 | --- | --- | --- |
+| Appearance profile (implemented) | Account owns zero or one independently deletable profile; all fields nullable; no GET insert; owner-derived CRUD | Future consumers, retention and wider measurement use cases remain separate decisions |
 | Styling profile (implemented) | Account owns zero or one profile; shared key and answer/choice tables; versioned full replacement | Phase 2 contract approved; recommendation consumers/precedence remain planned |
 | Wardrobe item | Account owns many item records | Attributes, availability, removal semantics: DEC-004 |
 | Item media | Owned image associated with item | Number of images, storage, metadata and retention: DEC-005 |
@@ -1644,7 +1660,7 @@ The following 13 use cases illustrate requirement interactions. A planned use ca
 **Main success flow:**
 
 1. Enter setup from Dashboard (Start or Resume), or open Edit preferences.
-2. Choose optional style/colors, comfort/coverage, and lifestyle values; distinguish unanswered from No preference.
+2. Choose optional style/colors, comfort/coverage, and lifestyle values; distinguish unanswered from No preference. Optionally fill Personal details and fit, or skip it without changing saved appearance.
 3. Next saves before advancing; review and edit steps as needed.
 4. Explicitly finish, save and exit, or save editor changes; refresh restores the committed snapshot.
 
@@ -1654,10 +1670,12 @@ The following 13 use cases illustrate requirement interactions. A planned use ca
 - Invalid fields preserve edits and focus relevant errors; missing session restores/signs in.
 - Conflict retains draft and requires explicit reload; uncertain delivery uses GET reconciliation without PUT replay.
 - Another account cannot select this owner in the API; logout/account change discards account-specific UI state.
+- Appearance can be cleared field by field or independently deleted after confirmation, keeping account/styling choices/completion. Old Review/completed records remain valid without repeating the optional step.
+- When appearance saves but styling progress fails, disclose partial success and recover without replaying the confirmed appearance save. The resources are not atomic together.
 
-**Postconditions:** Only confirmed owner choices/status/step are stored atomically. Future recommendation request defaults are not yet available.
+**Postconditions:** Each resource stores only confirmed owner changes in its own transaction. Future recommendation request defaults are not yet available.
 
-**Related requirements:** FR-ONB-001, FR-ONB-002, FR-ONB-004; future FR-ONB-003, FR-ONB-005, FR-ONB-006.
+**Related requirements:** FR-ONB-001, FR-ONB-002, FR-ONB-004, FR-APPR-001 through FR-APPR-008; future FR-ONB-003, FR-ONB-005, FR-ONB-006.
 
 <a id="uc-007"></a>
 
@@ -1918,7 +1936,7 @@ Every FR/NFR definition must have one stable unique ID and one matching matrix r
 
 ### 11.1 Delivered baseline
 
-Phase 0 and Phase 1 provide setup, approved public/authentication UI, persistence/validation, backend session authentication, frontend integration, isolated automated tests, and integration walkthroughs. Phase 2 adds optional onboarding, owner-bound versioned profiles, editing, setup entry points, and layered verification. Dashboard remains minimal; no wardrobe or recommendation dashboard is implemented.
+Phase 0 and Phase 1 provide setup, approved public/authentication UI, persistence/validation, backend session authentication, frontend integration, isolated automated tests, and integration walkthroughs. Phase 2 adds optional onboarding, owner-bound versioned profiles, editing, setup entry points, and layered verification. Phase 2E adds independently deletable appearance details and a compatible optional fifth onboarding step; it does not add appearance-based recommendations. Dashboard remains minimal; no wardrobe or recommendation dashboard is implemented.
 
 ### 11.2 Proposed first usable outfit MVP
 
@@ -1960,7 +1978,7 @@ There are 18 stable decision entries. DEC-002 is resolved for Phase 2; DEC-003 a
 | ID | Decision / question | Affected areas | Needed before |
 | --- | --- | --- | --- |
 | <a id="dec-001"></a>DEC-001 — Release scope and styling breadth | Confirm the overall outfit MVP boundary and whether makeup, hair, and accessory engines extend beyond wardrobe outfits. Phase 2 profile scope is approved independently; landing imagery is not evidence of those engines. | FR-AUTH-001; all planned modules | Before recommendation/broader styling scope |
-| <a id="dec-002"></a>DEC-002 — Onboarding contract | **Resolved, recorded 2026-10-17:** approved four screens, ten optional catalog groups, null versus No preference, SAVE/SKIP/COMPLETE, save/resume, no Dashboard gate, separate identity editing. | FR-ONB-001, FR-ONB-002, FR-ONB-004 | Implemented Phase 2 |
+| <a id="dec-002"></a>DEC-002 — Onboarding contract | **Resolved, recorded 2026-10-17:** original four screens, extended by approved Phase 2E to five optional screens; ten optional catalog groups, null versus No preference, SAVE/SKIP/COMPLETE, save/resume, no Dashboard gate, separate identity editing. | FR-ONB-001, FR-ONB-002, FR-ONB-004 | Implemented Phase 2 |
 | <a id="dec-003"></a>DEC-003 — Constraint semantics | **Partially resolved, recorded 2026-10-17:** only optional coverage may be Required; other choices/disliked colors are preferences; never infer restrictions. Engine conflict precedence, request overrides, and relaxation remain Open. | FR-ONB-003, FR-PLAN-005, FR-REC-002, FR-REC-009 | Before rule implementation |
 | <a id="dec-004"></a>DEC-004 — Wardrobe and context taxonomy | **Partially resolved, recorded 2026-10-17:** initial profile style/color/comfort/lifestyle catalog approved. Wardrobe categories, item metadata, availability, rule taxonomy, and missing attributes remain Open. | FR-WARD-001 through FR-WARD-008; FR-PLAN-001; FR-REC-003 | Before wardrobe schema/API |
 | <a id="dec-005"></a>DEC-005 — Media policy | Select local/object storage, supported file types and limits, image metadata handling, ownership access, replacement, and deletion. | FR-WARD-004, FR-WARD-007; NFR-PRIV-002 | Before image upload |

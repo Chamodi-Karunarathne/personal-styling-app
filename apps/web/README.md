@@ -153,3 +153,32 @@ the pending manual Neon walkthrough. The live config is separate from `pnpm test
 
 No additional auth system, JWT, OAuth, password-reset backend, full dashboard,
 wardrobe, planner, or recommendation engine is implemented.
+
+## Phase 2E personal details and fit
+
+`/profile` contains a separate **Personal Details & Fit** editor using the same
+session and account-scoped transport. All ten fields are optional: height,
+sizing note, proportions, skin tone/undertone, palette interest, hair
+color/texture/length, and face shape. Fields can be cleared, or the whole appearance
+profile deleted after confirmation without deleting styling preferences.
+No age, weight, birth date, photographs, or inferred traits are collected.
+Appearance data stays in memory and the application API, with no AI/external transfer.
+
+Onboarding now has five steps: Style and colors, Comfort and clothing preferences,
+Lifestyle and occasions, Personal details and fit, Review and finish. The optional
+personal step can be skipped without erasing saved appearance. Original REVIEW
+drafts stay on Review and completed users stay completed. A new additive
+`appearanceStepPending` flag records personal-step resume without changing the four
+stored step codes or requiring existing users to repeat setup.
+
+Appearance PUT/DELETE use CSRF and the observed UUID revision. Conflict or uncertain
+failure keeps edits and requires explicit reload unless a follow-up GET confirms
+the result. A failed reload also shows its error. Personal details save before
+styling progress when both changed; a failed second request is disclosed as partial
+success. The resources are not saved atomically together.
+
+Current checks: 50 helper tests plus 94 mocked desktop/mobile browser cases;
+two separate live browser cases passed against isolated local Spring/PostgreSQL.
+See [current verification](../../docs/testing/phase-2-verification.md#phase-2e-results)
+and [appearance contracts](../../docs/api/styling-profile.md#appearance-profile)
+for exact commands and pending Neon/production checks.

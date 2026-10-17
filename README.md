@@ -28,9 +28,10 @@ The application aims to:
 - Session ID rotation, CSRF bootstrap/refresh, exact-origin credentialed CORS, and environment-aware cookie configuration.
 - Typed frontend Fetch integration, session restoration, loading/error states, and protection against stale asynchronous authentication results.
 - A minimal protected `/dashboard` showing account information, Sign out, and Start/Resume/Edit preference links.
-- Accessible four-step `/onboarding` with optional answers, explicit No preference, draft saving, resume, skip, and completion.
+- Accessible five-step `/onboarding` with optional answers, explicit No preference, draft saving, resume, skip, and completion; original four-step records remain compatible.
 - `/profile` preference editing with read-only account identity, server-supported choices, and conflict/error recovery.
 - Owner-bound relational profile persistence, optimistic version checks, and authenticated profile APIs.
+- Optional Personal Details & Fit editor: height/sizing, self-described proportions, complexion/color, hair, and face shape; individual clearing and independent versioned deletion. No age, weight, birth date, or photographs are collected.
 - Backend unit/MVC/PostgreSQL/HTTP tests, frontend helper/browser tests, and a separate opt-in live browser suite.
 
 ### Planned
@@ -79,10 +80,13 @@ Sessions are stored in backend memory, referenced by an HttpOnly cookie. The fro
 | `GET /api/profile/options` | Authenticated preference catalog |
 | `GET /api/profile/me` | Current profile or NOT_STARTED; GET does not insert |
 | `PUT /api/profile/me` | Atomic full snapshot SAVE/SKIP/COMPLETE with expected version |
+| `GET /api/profile/appearance` | Optional personal details or empty snapshot; GET does not insert |
+| `PUT /api/profile/appearance` | Replace nullable personal details with an expected UUID revision |
+| `DELETE /api/profile/appearance` | Delete personal details only; expected revision in JSON body |
 
 Authentication POSTs require CSRF. Full contracts and PowerShell examples are in the [backend session guide](apps/api/SESSION_AUTH.md).
 
-Profile PUT also requires CSRF. Auth and profile clients share one request queue/token cache. Saves preserve unanswered versus explicit No preference and reject stale versions. See the [profile API](docs/api/styling-profile.md) for validation, state transitions, ownership, and uncertain-write handling. No recommendation engine applies these preferences yet.
+Profile PUT and DELETE also require CSRF. Auth and profile clients share one request queue/token cache. Saves preserve unanswered versus explicit No preference and reject stale versions. Appearance and styling are separate resources; the onboarding UI discloses partial save success instead of claiming an atomic combined save. See the [profile API](docs/api/styling-profile.md) for validation, compatibility, ownership, and uncertain-write handling. No recommendation engine applies these preferences yet, and appearance data is not sent to AI or external services.
 
 ## Project structure
 
@@ -242,6 +246,7 @@ The [Phase 2 verification guide](docs/testing/phase-2-verification.md) documents
 | Phase 1C: frontend–backend authentication integration | Complete |
 | Whole-application SRS and traceability baseline | Documented; future requirements and open decisions await review |
 | Phase 2: onboarding and styling profile management | Implemented; local PostgreSQL/live browser verified; Neon manual checks pending |
+| Phase 2E: optional personal appearance and fit profile | Implemented; independent CRUD, five-step compatibility, local PostgreSQL/live browser verified; Neon/production HTTPS checks pending |
 
 The next product path is a digital wardrobe, request context/weather, deterministic outfit recommendations and explanations, then saved outfits and feedback. Preference capture/editing is delivered; recommendation consumption is still planned. Priorities and release boundaries remain subject to the SRS decision log rather than assumed delivery dates.
 

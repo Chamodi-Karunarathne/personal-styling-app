@@ -1,6 +1,6 @@
 # Requirements traceability matrix
 
-Baseline 1.2, 2026-10-17; approved Phase 2E additions pending implementation. [SRS](SRS.md) · [Documentation index](../README.md).
+Baseline 1.3, 2026-10-17; Phase 2E implemented and verified locally. [SRS](SRS.md) · [Documentation index](../README.md).
 
 This matrix covers every functional and non-functional requirement in the SRS: **66 FR + 26 NFR = 92 requirements**. Use cases and open decisions are supporting specifications, not additional requirements counted here.
 
@@ -9,14 +9,14 @@ This matrix covers every functional and non-functional requirement in the SRS: *
 - Implemented means source supports the stated behavior, not a fresh passing test result or a production audit.
 - Planned means no complete implementation is claimed. Requires clarification identifies an unresolved behavior, policy, or release decision.
 - Source links on a planned quality requirement identify supporting foundations only, not delivery of the whole requirement.
-- Source/test links are real paths. Phase 2 execution evidence: 176 backend tests with isolated PostgreSQL; 107 deterministic frontend cases; one real local browser case; lint/types/build pass. See [verification](../testing/phase-2-verification.md). No Neon or production audit is claimed.
+- Source/test links are real paths. Current Phase 2E execution evidence: 243 backend tests with isolated PostgreSQL; 144 deterministic frontend cases (50 helper and 94 browser); two real local browser cases; lint/types/build pass. See [verification](../testing/phase-2-verification.md). No Neon or production audit is claimed.
 - “Not yet verified” on a future requirement means its SRS acceptance criteria must become tests after scope/decisions are approved; no nonexistent source or test is supplied.
 - Keep IDs stable, retain retired IDs with explanation, and update both documents together. Add execution date, environment, command/test case, and outcome when actual verification is performed.
 
 | Category | Implemented | Planned | Requires clarification | Total |
 | --- | --- | --- | --- | --- |
-| Functional | 15 | 27 | 24 | 66 |
-| Non-functional | 9 | 13 | 4 | 26 |
+| Functional | 23 | 19 | 24 | 66 |
+| Non-functional | 11 | 11 | 4 | 26 |
 
 ## Functional requirements
 
@@ -80,14 +80,14 @@ This matrix covers every functional and non-functional requirement in the SRS: *
 | [FR-ACCT-003](SRS.md#fr-acct-003) | Delete an account and associated information | Account | Should | Requires clarification | None; unimplemented | None yet | Not yet verified; SRS acceptance pending; DEC-013, DEC-014 |
 | [FR-ACCT-004](SRS.md#fr-acct-004) | Access or export personal information | Account | Could | Requires clarification | None; unimplemented | None yet | Not yet verified; SRS acceptance pending; DEC-014 |
 | [FR-ACCT-005](SRS.md#fr-acct-005) | Recover account access | Account | Should | Requires clarification | None; unimplemented | None yet | Not yet verified; SRS acceptance pending; DEC-013, DEC-015 |
-| [FR-APPR-001](SRS.md#fr-appr-001) | Optional fit and garment details | Appearance / fit | Must | Planned | None yet | None yet | Approved Phase 2E; implementation/acceptance pending |
-| [FR-APPR-002](SRS.md#fr-appr-002) | Self-declared appearance characteristics | Appearance / fit | Must | Planned | None yet | None yet | Approved Phase 2E; implementation/acceptance pending |
-| [FR-APPR-003](SRS.md#fr-appr-003) | Read and update personal details | Appearance / fit | Must | Planned | None yet | None yet | Approved Phase 2E; implementation/acceptance pending |
-| [FR-APPR-004](SRS.md#fr-appr-004) | Clear individual appearance fields | Appearance / fit | Must | Planned | None yet | None yet | Approved Phase 2E; implementation/acceptance pending |
-| [FR-APPR-005](SRS.md#fr-appr-005) | Delete appearance information independently | Appearance / fit | Must | Planned | None yet | None yet | Approved Phase 2E; implementation/acceptance pending |
-| [FR-APPR-006](SRS.md#fr-appr-006) | Authenticated appearance ownership and privacy | Appearance / fit | Must | Planned | None yet | None yet | Approved Phase 2E; implementation/acceptance pending |
-| [FR-APPR-007](SRS.md#fr-appr-007) | Optional fifth onboarding step with backward compatibility | Appearance / fit | Must | Planned | None yet | None yet | Approved Phase 2E; implementation/acceptance pending |
-| [FR-APPR-008](SRS.md#fr-appr-008) | Recommendation integration boundary | Appearance / fit | Must | Planned | None yet | None yet | Approved Phase 2E; implementation/acceptance pending |
+| [FR-APPR-001](SRS.md#fr-appr-001) | Optional fit and garment details | Appearance / fit | Must | Implemented | [Entity][aEntity]<br>[Input DTO][aDto]<br>[Fields][aFields] | [Service][aServiceTests]<br>[JSON][aJsonTests]<br>[Browser][aBrowser] | Passed local suites 2026-10-17; see Phase 2E verification. Future recommendation use and Neon/production verification excluded |
+| [FR-APPR-002](SRS.md#fr-appr-002) | Self-declared appearance characteristics | Appearance / fit | Must | Implemented | [Input DTO][aDto]<br>[Fields][aFields] | [JSON][aJsonTests]<br>[Service][aServiceTests]<br>[Browser][aBrowser] | Passed local suites 2026-10-17; see Phase 2E verification. Future recommendation use and Neon/production verification excluded |
+| [FR-APPR-003](SRS.md#fr-appr-003) | Read and update personal details | Appearance / fit | Must | Implemented | [Controller][aController]<br>[Service][aService]<br>[Editor][aEditor] | [Persistence][aPersistence]<br>[HTTP][pHttp]<br>[Live][pLive] | Passed local suites 2026-10-17; see Phase 2E verification. Future recommendation use and Neon/production verification excluded |
+| [FR-APPR-004](SRS.md#fr-appr-004) | Clear individual appearance fields | Appearance / fit | Must | Implemented | [Editor][aEditor]<br>[Service][aService] | [Persistence][aPersistence]<br>[Browser][aBrowser]<br>[Live][pLive] | Passed local suites 2026-10-17; see Phase 2E verification. Future recommendation use and Neon/production verification excluded |
+| [FR-APPR-005](SRS.md#fr-appr-005) | Delete appearance information independently | Appearance / fit | Must | Implemented | [Controller][aController]<br>[Service][aService]<br>[Resource][aResource] | [Persistence][aPersistence]<br>[Browser][aBrowser]<br>[HTTP][pHttp] | Passed local suites 2026-10-17; see Phase 2E verification. Future recommendation use and Neon/production verification excluded |
+| [FR-APPR-006](SRS.md#fr-appr-006) | Authenticated appearance ownership and privacy | Appearance / fit | Must | Implemented | [Controller][aController]<br>[Security][security]<br>[Bound client][pClient] | [MVC][aMvc]<br>[HTTP][pHttp]<br>[Client][aClientTests]<br>[Browser][aBrowser] | Passed local suites 2026-10-17; see Phase 2E verification. Future recommendation use and Neon/production verification excluded |
+| [FR-APPR-007](SRS.md#fr-appr-007) | Optional fifth onboarding step with backward compatibility | Appearance / fit | Must | Implemented | [Flow][pFlow]<br>[Styling service][pService]<br>[Resource][aResource] | [Wizard][aWizard]<br>[Persistence][aPersistence]<br>[Live][pLive] | Passed local suites 2026-10-17; see Phase 2E verification. Future recommendation use and Neon/production verification excluded |
+| [FR-APPR-008](SRS.md#fr-appr-008) | Recommendation integration boundary | Appearance / fit | Must | Implemented | [Service][aService]<br>[Bound client][pClient]<br>[Fields][aFields] | [MVC][aMvc]<br>[Client][aClientTests]<br>[Browser][aBrowser] | Passed local suites 2026-10-17; see Phase 2E verification. Future recommendation use and Neon/production verification excluded |
 
 ## Non-functional requirements
 
@@ -117,8 +117,8 @@ This matrix covers every functional and non-functional requirement in the SRS: *
 | [NFR-TEST-001](SRS.md#nfr-test-001) | Layered reproducible verification | Testability | Must | Planned | [Playwright configuration][testconfig]<br>[Frontend integration guide][webdoc]<br>[Backend session guide][apidoc] | [RegisterRequestTests][tReg]<br>[AuthServiceTests][tService]<br>[AuthControllerTests][tController]<br>[SessionAuthenticationTests][tSession]<br>[Frontend auth browser tests][tBrowser]<br>[Fetch client tests][tClient]<br>[Full application context test][tContext] | Not yet verified; SRS acceptance pending |
 | [NFR-SCALE-001](SRS.md#nfr-scale-001) | Session deployment boundary | Scalability | Must | Requires clarification | [SecurityConfig][security]<br>[Development configuration][props]<br>[Backend session guide][apidoc] | None yet | Not yet verified; SRS acceptance pending; DEC-018 |
 | [NFR-SCALE-002](SRS.md#nfr-scale-002) | Bounded collection processing | Scalability | Should | Planned | None; unimplemented | None yet | Not yet verified; SRS acceptance pending; DEC-010, DEC-018 |
-| [NFR-PRIV-004](SRS.md#nfr-priv-004) | Appearance data minimization | Privacy | Must | Planned | None yet | None yet | Approved Phase 2E; inspection and tests pending |
-| [NFR-ACC-003](SRS.md#nfr-acc-003) | Accessible optional appearance controls | Accessibility | Must | Planned | None yet | None yet | Approved Phase 2E; keyboard/responsive tests pending |
+| [NFR-PRIV-004](SRS.md#nfr-priv-004) | Appearance data minimization | Privacy | Must | Implemented | [Input DTO][aDto]<br>[Entity][aEntity]<br>[Fields][aFields] | [JSON][aJsonTests]<br>[MVC][aMvc]<br>[Browser][aBrowser] | Passed local suites 2026-10-17; see Phase 2E verification. Future recommendation use and Neon/production verification excluded |
+| [NFR-ACC-003](SRS.md#nfr-acc-003) | Accessible optional appearance controls | Accessibility | Must | Implemented | [Fields][aFields]<br>[Editor][aEditor]<br>[Flow][pFlow] | [Browser][aBrowser]<br>[Wizard][aWizard] | Passed local suites 2026-10-17; see Phase 2E verification. Future recommendation use and Neon/production verification excluded |
 
 ## Use cases, decisions, and verification gaps
 
@@ -205,3 +205,18 @@ Before marking a future row Implemented, link real source and appropriate tests,
 [pBrowser]: ../../apps/web/tests/auth/profile-integration.spec.ts
 [pClientTests]: ../../apps/web/tests/unit/profile-client.spec.ts
 [pLive]: ../../apps/web/tests/live/profile-live.spec.ts
+
+[aEntity]: ../../apps/api/src/main/java/com/chamodi/styling/profile/appearance/entity/AppearanceProfile.java
+[aService]: ../../apps/api/src/main/java/com/chamodi/styling/profile/appearance/service/AppearanceProfileService.java
+[aDto]: ../../apps/api/src/main/java/com/chamodi/styling/profile/appearance/dto/AppearanceDetails.java
+[aController]: ../../apps/api/src/main/java/com/chamodi/styling/profile/appearance/controller/AppearanceProfileController.java
+[aEditor]: ../../apps/web/src/components/profile/appearance-editor.tsx
+[aFields]: ../../apps/web/src/components/profile/appearance-fields.tsx
+[aResource]: ../../apps/web/src/components/profile/use-appearance-resource.ts
+[aServiceTests]: ../../apps/api/src/test/java/com/chamodi/styling/profile/appearance/AppearanceProfileServiceTests.java
+[aJsonTests]: ../../apps/api/src/test/java/com/chamodi/styling/profile/appearance/AppearanceRequestJsonTests.java
+[aPersistence]: ../../apps/api/src/test/java/com/chamodi/styling/profile/appearance/AppearancePersistenceTests.java
+[aMvc]: ../../apps/api/src/test/java/com/chamodi/styling/profile/appearance/AppearanceControllerTests.java
+[aBrowser]: ../../apps/web/tests/auth/appearance-editor.spec.ts
+[aWizard]: ../../apps/web/tests/auth/appearance-onboarding.spec.ts
+[aClientTests]: ../../apps/web/tests/unit/appearance-client.spec.ts

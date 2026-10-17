@@ -4,16 +4,16 @@ This directory covers the entire intended Personal Styling & Outfit Recommendati
 
 ## Requirements baseline
 
-- [Software Requirements Specification](requirements/SRS.md): product scope, 58 functional and 24 non-functional requirements, interfaces/data/rules, 13 use cases, and 18 decision entries (DEC-002 resolved; DEC-003/004 partly resolved).
-- [Requirements traceability](requirements/requirements-traceability.md): all 82 FR/NFR IDs mapped to implementation/test evidence or explicitly pending verification.
+- [Software Requirements Specification](requirements/SRS.md): product scope, 66 functional and 26 non-functional requirements, interfaces/data/rules, 13 use cases, and 18 decision entries (DEC-002 resolved; DEC-003/004 partly resolved).
+- [Requirements traceability](requirements/requirements-traceability.md): all 92 FR/NFR IDs mapped to implementation/test evidence or explicitly pending verification.
 
-Baseline 1.0 was prepared on 2026-10-16 after Phase 1. Revision 1.1, dated 2026-10-17, records the owner-approved Phase 2 contract and implementation on the feature branch. Future priorities and decisions remain proposals. Actual local verification is recorded separately from implementation status and production/Neon claims.
+Baseline 1.0 was prepared on 2026-10-16 after Phase 1. Revision 1.1 records Phase 2; revision 1.3, dated 2026-10-17, records the implemented owner-approved Phase 2E appearance extension. Future priorities and decisions remain proposals. Actual local verification is recorded separately from implementation status and production/Neon claims.
 
 ## Existing implementation and testing guides
 
 - [Frontend authentication integration and testing](../apps/web/README.md): local setup, browser session behavior, automated tooling, and the live browser walkthrough.
 - [Backend session authentication API and testing](../apps/api/SESSION_AUTH.md): endpoint contracts, cookie/CSRF/CORS behavior, PowerShell walkthrough, and security limitations.
-- [Styling profile API](api/styling-profile.md): catalog, snapshot/lifecycle, validation, ownership, persistence, concurrency, and browser consistency.
+- [Styling and appearance profile API](api/styling-profile.md): catalogs, snapshot/lifecycle, optional data and independent deletion, ownership, concurrency, onboarding compatibility, and browser consistency.
 - [Phase 2 verification](testing/phase-2-verification.md): commands/results, isolated PostgreSQL and live-browser setup, and pending manual Neon checks.
 - [Learning journal](learning/LEARNINGS.md): chronological concepts, observed challenges, verified results, and further study.
 - [Original epics and user stories](<../Personal Styling App — Epics & User Stories 1.md>): informal whole-product roadmap, used as planning evidence rather than an approved specification.
