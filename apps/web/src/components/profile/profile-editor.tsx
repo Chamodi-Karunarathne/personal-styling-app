@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useErrorSummary } from "@/components/profile/use-error-summary";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useSession } from "@/components/auth/session-provider";
 import { Button } from "@/components/ui/button";
@@ -34,18 +35,16 @@ export function ProfileEditor({ catalog = INITIAL_CATALOG, initial, onSave, onEx
   const [snapshot, setSnapshot] = useState<ProfileSnapshot>(() => draft?.snapshot ?? initial ?? emptyProfile());
   const [preferences, setPreferences] = useState(() => clonePreferences(draft?.preferences ?? initial?.preferences ?? emptyProfile().preferences));
   const [errors, setErrors] = useState<Record<string, string>>(draft?.errors ?? {});
-  const [error, setError] = useState<string | null>(draft?.pending ? "A preferences save was in progress when you left. Reload before saving again." : draft?.error ?? null);
+  const { error, setError, summary: errorSummary } = useErrorSummary(draft?.pending ? "A preferences save was in progress when you left. Reload before saving again." : draft?.error ?? null);
   const [message, setMessage] = useState<string | null>(null);
   const [conflict, setConflict] = useState(draft?.pending || draft?.conflict || false);
   const [pending, setPending] = useState(false);
   const submitting = useRef(false);
   const mounted = useRef(true);
-  const errorSummary = useRef<HTMLDivElement>(null);
   const dirty = JSON.stringify(preferences) !== JSON.stringify(snapshot.preferences);
   useLayoutEffect(() => { remember(dirty || conflict || pending ? { pending, snapshot, preferences, errors, error, conflict } : null); }, [remember, dirty, pending, conflict, snapshot, preferences, errors, error]);
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  useEffect(() => { if (error) errorSummary.current?.focus(); }, [error]);
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };

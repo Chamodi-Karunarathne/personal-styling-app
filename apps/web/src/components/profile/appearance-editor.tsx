@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ApiError, readableError, sessionApiClient, StaleSessionError } from "@/lib/api/session-client";
 import { normalizeAppearance, sameAppearance, validateAppearance, type AppearanceSnapshot } from "@/lib/appearance/types";
 import { AppearanceFields } from "./appearance-fields";
+import { useErrorSummary } from "./use-error-summary";
 import { useAppearanceResource } from "./use-appearance-resource";
 import { useAccountDraft } from "./use-account-draft";
 
@@ -42,17 +43,16 @@ function AppearanceEditorForm({ initial, resource, onReload, onStateChange }: {
   const [snapshot, setSnapshot] = useState(draft?.snapshot ?? initial);
   const [details, setDetails] = useState(() => structuredClone(draft?.details ?? initial.details));
   const [errors, setErrors] = useState<Record<string, string>>(draft?.errors ?? {});
-  const [error, setError] = useState<string | null>(draft?.pending ? "A personal details write was in progress when you left. Reload before continuing." : draft?.error ?? null);
+  const { error, setError, summary: summary } = useErrorSummary(draft?.pending ? "A personal details write was in progress when you left. Reload before continuing." : draft?.error ?? null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [blocked, setBlocked] = useState(draft?.pending || draft?.blocked || false);
-  const submitting = useRef(false); const mounted = useRef(true); const summary = useRef<HTMLDivElement>(null);
+  const submitting = useRef(false); const mounted = useRef(true);
   const dirty = !sameAppearance(details, snapshot.details);
   useLayoutEffect(() => { remember(dirty || blocked || pending ? { pending, snapshot, details, errors, error, blocked } : null); }, [remember, dirty, pending, blocked, snapshot, details, errors, error]);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => { onStateChange({ dirty, pending }); }, [dirty, pending, onStateChange]);
-  useEffect(() => { if (error) summary.current?.focus(); }, [error]);
   useEffect(() => {
     if (!dirty) return; const warn = (event: BeforeUnloadEvent) => event.preventDefault(); window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);

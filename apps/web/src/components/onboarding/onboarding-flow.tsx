@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useErrorSummary } from "@/components/profile/use-error-summary";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PreferenceFields } from "@/components/profile/preference-fields";
@@ -38,14 +39,13 @@ export function OnboardingFlow({ catalog = INITIAL_CATALOG, initial, onSave, onE
   const [version, setVersion] = useState(draft ? draft.version : initial?.version ?? null);
   const [errors, setErrors] = useState<Record<string, string>>(draft?.errors ?? {});
   const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(draft?.pending ? "An onboarding save was in progress when you left. Reload before continuing." : draft?.error ?? null);
+  const { error, setError, summary: errorSummary } = useErrorSummary(draft?.pending ? "An onboarding save was in progress when you left. Reload before continuing." : draft?.error ?? null);
   const [conflict, setConflict] = useState(draft?.pending || draft?.conflict || false);
   const [pending, setPending] = useState(false);
   const [savedPreferences, setSavedPreferences] = useState(() => draft?.savedPreferences ?? JSON.stringify(initial?.preferences ?? emptyPreferences()));
   const submitting = useRef(false);
   const mounted = useRef(true);
   const heading = useRef<HTMLHeadingElement>(null);
-  const errorSummary = useRef<HTMLDivElement>(null);
   const firstRender = useRef(true);
   const stepIndex = STEPS.findIndex((step) => step.code === stepCode);
   const step = STEPS[stepIndex];
@@ -56,11 +56,10 @@ export function OnboardingFlow({ catalog = INITIAL_CATALOG, initial, onSave, onE
   useLayoutEffect(() => { remember(dirty || conflict || pending ? { pending, preferences, stepCode, appearanceDraft, appearanceBaseline, appearanceErrors, version, errors, error, conflict, savedPreferences } : null); }, [remember, dirty, pending, conflict, preferences, stepCode, appearanceDraft, appearanceBaseline, appearanceErrors, version, errors, error, savedPreferences]);
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (firstRender.current) { firstRender.current = false; return; }
     heading.current?.focus();
   }, [stepCode]);
-  useEffect(() => { if (error) errorSummary.current?.focus(); }, [error]);
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
