@@ -18,9 +18,10 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     if (session.status === "unauthenticated") router.replace("/login");
   }, [session.status, router]);
 
-  if (session.status === "authenticated") return children;
   return (
-    <main className="flex min-h-screen flex-1 items-center justify-center bg-background px-6 py-12">
+    <>
+    {session.account && <div hidden={session.status !== "authenticated"} inert={session.status !== "authenticated"} className={session.status === "authenticated" ? "contents" : undefined}>{children}</div>}
+    {session.status !== "authenticated" && <main className="flex min-h-screen flex-1 items-center justify-center bg-background px-6 py-12">
       <div className="w-full max-w-sm space-y-5 text-center">
         {session.status === "error" ? (
           <>
@@ -37,6 +38,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
           </p>
         )}
       </div>
-    </main>
+    </main>}
+    </>
   );
 }

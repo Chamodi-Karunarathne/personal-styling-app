@@ -26,6 +26,7 @@ export class AuthClient {
         return user;
       } catch (error) {
         if (error instanceof ApiError && error.status === 401) this.transport.reject(generation);
+        else if (!signal?.aborted) this.transport.suspend(generation);
         throw error;
       }
     }, signal);

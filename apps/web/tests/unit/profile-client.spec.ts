@@ -31,6 +31,17 @@ test.beforeEach(async () => {
 });
 test.afterEach(() => { globalThis.fetch = originalFetch; });
 
+test("a failed session recheck suspends queued profile writes until the same account is verified", async () => {
+  const client = profiles.forAccount(user.id);
+  handler = (call) => call.path === "/api/auth/me" ? Response.json({}, { status: 503 }) : normal(call);
+  const check = auth.me().catch((error) => error);
+  const write = client.save(input()).catch((error) => error);
+  await check; expect(await write).toMatchObject({ message: "Verify your session before continuing." });
+  expect(calls.filter((call) => call.init.method === "PUT")).toHaveLength(0);
+  handler = normal; await auth.me(); await client.save(input());
+  expect(calls.filter((call) => call.init.method === "PUT")).toHaveLength(1);
+});
+
 test("auth and profile share CSRF cache, queue, credentials, and safe contracts", async () => {
   await auth.login({ email: user.email, password: "Example123" });
   const profile = profiles.forAccount(user.id);

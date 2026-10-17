@@ -48,7 +48,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           hadAccount.current = false;
           setSession(anonymous);
         }
-        else setSession({ status: "error", account: null, message: "Unable to verify your session. Please try again." });
+        else setSession((previous) => ({ status: "error", account: previous.account, message: "Unable to verify your session. Please try again." }));
       } finally {
         if (restoration.current?.controller === controller) restoration.current = null;
       }

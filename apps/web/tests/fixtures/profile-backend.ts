@@ -12,6 +12,7 @@ export async function mockProfileBackend(page: Page) {
     appearance: emptyAppearanceSnapshot(), appearanceWrites: [] as AppearanceWrite[], appearanceDeletes: [] as (string | null)[],
     failAppearance: null as null | { status?: number; fieldErrors?: Record<string, string>; loseResponse?: boolean; commit?: boolean },
     failAppearanceRead: false,
+    failSessionRead: false,
     failWrite: null as null | { status?: number; fieldErrors?: Record<string, string>; loseResponse?: boolean; commit?: boolean },
     failRead: false,
     before: async (path: string) => { void path; },
@@ -39,7 +40,7 @@ export async function mockProfileBackend(page: Page) {
       await route.fulfill({ status: 200, headers, json: state.account }); return;
     }
     if (!state.authenticated) { await error(401, "Authentication is required"); return; }
-    if (path === "/api/auth/me") { await route.fulfill({ status: 200, headers, json: state.account }); return; }
+    if (path === "/api/auth/me") { if (state.failSessionRead) await error(503, "private diagnostics"); else await route.fulfill({ status: 200, headers, json: state.account }); return; }
     if (path === "/api/profile/options") { await route.fulfill({ status: 200, headers, json: INITIAL_CATALOG }); return; }
     if (path === "/api/profile/appearance" && request.method() === "GET") {
       if (state.failAppearanceRead) await error(503, "private diagnostics"); else await route.fulfill({ status: 200, headers, json: state.appearance }); return;

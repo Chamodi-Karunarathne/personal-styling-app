@@ -46,7 +46,7 @@ function useOwnedProfile(accountId: number, includeCatalog: boolean) {
 export function ProfileWorkspace({ mode }: { mode: "onboarding" | "editor" }) {
   const { session } = useSession();
   const [revision, setRevision] = useState(0);
-  if (session.status !== "authenticated" || !session.account) return null;
+  if (!session.account) return null;
   return <OwnedWorkspace key={`${session.account.id}:${sessionApiClient.epoch()}:${revision}`} accountId={session.account.id}
     mode={mode} reload={() => setRevision((value) => value + 1)} />;
 }
@@ -96,7 +96,7 @@ function OnboardingWithAppearance({ accountId, ...props }: ComponentProps<typeof
 export function ProfileEntry() {
   const { session } = useSession();
   const [revision, setRevision] = useState(0);
-  if (session.status !== "authenticated" || !session.account) return null;
+  if (!session.account) return null;
   return <OwnedEntry key={`${session.account.id}:${sessionApiClient.epoch()}:${revision}`} accountId={session.account.id} retry={() => setRevision((value) => value + 1)} />;
 }
 function OwnedEntry({ accountId, retry }: { accountId: number; retry: () => void }) {

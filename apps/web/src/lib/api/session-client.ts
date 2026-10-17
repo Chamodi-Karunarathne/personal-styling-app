@@ -28,6 +28,7 @@ export class SessionApiClient {
   private queue: Promise<unknown> = Promise.resolve();
   private generation = 0;
   private ownerId: number | null = null;
+  private verified = false;
   constructor(private readonly baseUrl: string) {}
 
   enqueue<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
@@ -35,17 +36,22 @@ export class SessionApiClient {
     this.queue = result.catch(() => undefined);
     return result;
   }
-  invalidate(): number { this.generation++; this.ownerId = null; return this.generation; }
+  invalidate(): number { this.generation++; this.ownerId = null; this.verified = false; return this.generation; }
+  suspend(generation: number) { if (generation === this.generation) this.verified = false; }
   epoch(): number { return this.generation; }
   adopt(accountId: number, generation: number) {
     if (generation !== this.generation) return;
     if (this.ownerId !== null && this.ownerId !== accountId) this.generation++;
     this.ownerId = accountId;
+    this.verified = true;
   }
   reject(generation: number) { if (generation === this.generation) this.invalidate(); }
   scope(accountId: number): AccountScope { return Object.freeze({ accountId, generation: this.generation }); }
-  isCurrent(scope: AccountScope): boolean { return scope.generation === this.generation && scope.accountId === this.ownerId; }
-  assert(scope: AccountScope) { if (!this.isCurrent(scope)) throw new StaleSessionError(); }
+  isCurrent(scope: AccountScope): boolean { return this.verified && scope.generation === this.generation && scope.accountId === this.ownerId; }
+  assert(scope: AccountScope) {
+    if (scope.generation !== this.generation || scope.accountId !== this.ownerId) throw new StaleSessionError();
+    if (!this.verified) throw new ApiError(0, "Verify your session before continuing.");
+  }
   clearCsrf() { this.csrf = null; }
 
   private url(path: string): string {

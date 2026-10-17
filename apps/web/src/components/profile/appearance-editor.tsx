@@ -10,7 +10,7 @@ import { useAppearanceResource } from "./use-appearance-resource";
 
 export function AppearanceEditor({ onStateChange }: { onStateChange: (state: { dirty: boolean; pending: boolean }) => void }) {
   const { session } = useSession();
-  if (!session.account || session.status !== "authenticated") return null;
+  if (!session.account) return null;
   return <OwnedAppearanceEditor key={`${session.account.id}:${sessionApiClient.epoch()}`} accountId={session.account.id} onStateChange={onStateChange} />;
 }
 function OwnedAppearanceEditor({ accountId, onStateChange }: { accountId: number; onStateChange: (state: { dirty: boolean; pending: boolean }) => void }) {
