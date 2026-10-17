@@ -1,6 +1,6 @@
 # Requirements traceability matrix
 
-Baseline 1.1, 2026-10-17; Phase 2 delivery. [SRS](SRS.md) · [Documentation index](../README.md).
+Baseline 1.2, 2026-10-17; approved Phase 2E additions pending implementation. [SRS](SRS.md) · [Documentation index](../README.md).
 
 This matrix covers every functional and non-functional requirement in the SRS: **66 FR + 26 NFR = 92 requirements**. Use cases and open decisions are supporting specifications, not additional requirements counted here.
 
@@ -80,7 +80,6 @@ This matrix covers every functional and non-functional requirement in the SRS: *
 | [FR-ACCT-003](SRS.md#fr-acct-003) | Delete an account and associated information | Account | Should | Requires clarification | None; unimplemented | None yet | Not yet verified; SRS acceptance pending; DEC-013, DEC-014 |
 | [FR-ACCT-004](SRS.md#fr-acct-004) | Access or export personal information | Account | Could | Requires clarification | None; unimplemented | None yet | Not yet verified; SRS acceptance pending; DEC-014 |
 | [FR-ACCT-005](SRS.md#fr-acct-005) | Recover account access | Account | Should | Requires clarification | None; unimplemented | None yet | Not yet verified; SRS acceptance pending; DEC-013, DEC-015 |
-
 | [FR-APPR-001](SRS.md#fr-appr-001) | Optional fit and garment details | Appearance / fit | Must | Planned | None yet | None yet | Approved Phase 2E; implementation/acceptance pending |
 | [FR-APPR-002](SRS.md#fr-appr-002) | Self-declared appearance characteristics | Appearance / fit | Must | Planned | None yet | None yet | Approved Phase 2E; implementation/acceptance pending |
 | [FR-APPR-003](SRS.md#fr-appr-003) | Read and update personal details | Appearance / fit | Must | Planned | None yet | None yet | Approved Phase 2E; implementation/acceptance pending |
@@ -118,7 +117,6 @@ This matrix covers every functional and non-functional requirement in the SRS: *
 | [NFR-TEST-001](SRS.md#nfr-test-001) | Layered reproducible verification | Testability | Must | Planned | [Playwright configuration][testconfig]<br>[Frontend integration guide][webdoc]<br>[Backend session guide][apidoc] | [RegisterRequestTests][tReg]<br>[AuthServiceTests][tService]<br>[AuthControllerTests][tController]<br>[SessionAuthenticationTests][tSession]<br>[Frontend auth browser tests][tBrowser]<br>[Fetch client tests][tClient]<br>[Full application context test][tContext] | Not yet verified; SRS acceptance pending |
 | [NFR-SCALE-001](SRS.md#nfr-scale-001) | Session deployment boundary | Scalability | Must | Requires clarification | [SecurityConfig][security]<br>[Development configuration][props]<br>[Backend session guide][apidoc] | None yet | Not yet verified; SRS acceptance pending; DEC-018 |
 | [NFR-SCALE-002](SRS.md#nfr-scale-002) | Bounded collection processing | Scalability | Should | Planned | None; unimplemented | None yet | Not yet verified; SRS acceptance pending; DEC-010, DEC-018 |
-
 | [NFR-PRIV-004](SRS.md#nfr-priv-004) | Appearance data minimization | Privacy | Must | Planned | None yet | None yet | Approved Phase 2E; inspection and tests pending |
 | [NFR-ACC-003](SRS.md#nfr-acc-003) | Accessible optional appearance controls | Accessibility | Must | Planned | None yet | None yet | Approved Phase 2E; keyboard/responsive tests pending |
 
