@@ -4,7 +4,7 @@ Personal Styling & Outfit Recommendation Application
 
 | Document control | Value |
 | --- | --- |
-| Baseline | 1.1 — Phase 2 onboarding/profile delivery; full-product IDs retained |
+| Baseline | 1.2 — approved Phase 2E appearance requirements; implementation pending |
 | Date | 2026-10-17 |
 | Evidence snapshot | feature/phase-2-user-onboarding through 21d48f5; Phase 0, Phase 1, and Phase 2 delivered |
 | Document state | Phase 2 decisions owner-approved; future product scope/decisions remain proposals |
@@ -149,7 +149,7 @@ Secrets remain outside source control and frontend-public variables. Existing wo
 
 ## 3. System features and functional requirements
 
-There are 58 functional requirements. FR-AUTH-001 through FR-AUTH-012 and FR-ONB-001, FR-ONB-002, FR-ONB-004 are implemented. Other functional requirements remain planned or require clarification. Profile metadata supporting future recommendation requirements is not evidence of an implemented engine.
+There are 66 functional requirements. FR-AUTH-001 through FR-AUTH-012 and FR-ONB-001, FR-ONB-002, FR-ONB-004 are implemented. Other functional requirements remain planned or require clarification. Profile metadata supporting future recommendation requirements is not evidence of an implemented engine.
 
 ### 3.1 Authentication and public entry
 
@@ -922,6 +922,106 @@ The system shall provide password recovery only after a secure reset flow and de
 - **Acceptance:** Before delivery is implemented no email-sent success is shown; later acceptance must verify non-enumeration and invalid/expired/reused reset proof.
 - **Open decisions:** DEC-013, DEC-015.
 
+### 3.9 Optional personal appearance and fit — approved Phase 2E
+
+These requirements are approved for this milestone but remain Planned until implementation and verification. Personal data minimization takes precedence over speculative future usefulness. Initial values are self-described, with no judgment or inference. The API/data design is detailed after implementation.
+
+<a id="fr-appr-001"></a>
+
+#### FR-APPR-001 — Optional fit and garment details
+
+**Priority:** Must. **Status:** Planned.
+
+The system shall allow optional height in whole centimeters, a garment sizing note, and self-described proportions for future garment length/size personalization. Existing fit preferences shall be reused, not duplicated.
+
+- **Inputs / outputs:** Height, sizing note, proportions; a separate owner-bound appearance snapshot.
+- **Validation / errors:** Height must be a whole number from 50 to 260 cm (a broad input guard, not an ideal); note at most 60 characters; proportions from supported choices. Other measurements are deferred until a concrete garment use case exists.
+- **Acceptance:** All fields may be null. Valid values save/read back; invalid input preserves prior data. No appearance ranking, BMI, ideal weight, or desirability calculation exists.
+
+<a id="fr-appr-002"></a>
+
+#### FR-APPR-002 — Self-declared appearance characteristics
+
+**Priority:** Must. **Status:** Planned.
+
+The system shall accept optional self-selected skin tone/undertone, palette-suggestion interest, hair color/texture/length, and face shape.
+
+- **Inputs / outputs:** Nullable supported choices and optional yes/no palette interest; saved values and user-readable labels.
+- **Validation / errors:** Undertone offers Warm, Cool, Neutral, Unsure; face shape includes Unsure and Prefer not to specify; unsupported codes fail safely.
+- **Acceptance:** Users may omit or clear each characteristic. No characteristic is inferred from photographs, gender, ethnicity, or other unrelated information.
+
+<a id="fr-appr-003"></a>
+
+#### FR-APPR-003 — Read and update personal details
+
+**Priority:** Must. **Status:** Planned.
+
+The system shall let the authenticated owner read and replace their optional appearance details independently of styling preferences and account identity.
+
+- **Inputs / outputs:** GET and versioned complete PUT snapshot; current or empty representation.
+- **Validation / errors:** A missing GET inserts nothing; first explicit save creates; stale/missing expected versions conflict. Entire input validates before transactional mutation.
+- **Acceptance:** Create/read/update survive refresh; rejected writes make no partial change. Concurrent first creation is safe, and deleted/recreated records cannot accept an old version.
+
+<a id="fr-appr-004"></a>
+
+#### FR-APPR-004 — Clear individual appearance fields
+
+**Priority:** Must. **Status:** Planned.
+
+The system shall let users set individual appearance fields to null without changing other supplied appearance values or styling preferences.
+
+- **Inputs / outputs:** Complete appearance snapshot with explicit nullable fields; updated snapshot.
+- **Validation / errors:** Omitted fields must not silently become clearing requests. Empty sizing text is treated as unanswered; false palette interest differs from null.
+- **Acceptance:** Clear/save/refresh leaves the field unanswered while retaining other appearance values. Cancel discards only unsaved local edits.
+
+<a id="fr-appr-005"></a>
+
+#### FR-APPR-005 — Delete appearance information independently
+
+**Priority:** Must. **Status:** Planned.
+
+The system shall let the owner confirm deletion of their entire appearance profile without deleting their account, styling choices, or onboarding completion.
+
+- **Inputs / outputs:** DELETE with observed version; success without appearance payload.
+- **Validation / errors:** Absent deletion is idempotent; an existing record requires the matching version. Uncertain deletion is reconciled by a read, never blindly retried.
+- **Acceptance:** After confirmed deletion GET is empty; styling preferences and authentication still work. Stale deletion cannot remove newer details.
+
+<a id="fr-appr-006"></a>
+
+#### FR-APPR-006 — Authenticated appearance ownership and privacy
+
+**Priority:** Must. **Status:** Planned.
+
+The system shall derive appearance ownership exclusively from the existing authenticated principal and protect all modifying requests with existing CSRF/session controls.
+
+- **Inputs / outputs:** Current session and CSRF header/cookie pair; safe owner-only responses/errors.
+- **Validation / errors:** No owner ID in input; safe structured 400/401/403/409/500 responses; exact-origin CORS may add DELETE only as needed.
+- **Acceptance:** Two-account tests prove isolation. Appearance values never enter auth responses/principals, logs, URLs, or browser storage. Session/account changes invalidate pending work.
+
+<a id="fr-appr-007"></a>
+
+#### FR-APPR-007 — Optional fifth onboarding step with backward compatibility
+
+**Priority:** Must. **Status:** Planned.
+
+The system shall offer Personal details and fit between Lifestyle and Review, keeping all details optional and old onboarding records valid.
+
+- **Inputs / outputs:** Existing draft/completed styling snapshot and optional appearance record; five-step UI with resume state.
+- **Validation / errors:** Existing REVIEW remains review and COMPLETED remains completed; no mandatory re-onboarding. Skipping the appearance step preserves saved appearance. Separate endpoint saves must disclose partial success.
+- **Acceptance:** Users can finish without appearance data. Save/Next/Back/Skip/exit and refresh work. A failed second-resource save retains edits and accurately identifies already-saved progress; no false atomic success.
+
+<a id="fr-appr-008"></a>
+
+#### FR-APPR-008 — Recommendation integration boundary
+
+**Priority:** Must. **Status:** Planned.
+
+The system shall store appearance details only as voluntary future personalization inputs during Phase 2E, with no automatic recommendation restriction or external transmission.
+
+- **Inputs / outputs:** Explicit appearance selections; owner-only persistence and presentation.
+- **Validation / errors:** No AI/provider calls, image inference, complexion-based color rejection, or appearance ratings.
+- **Acceptance:** Source/network tests show only the configured application API receives these fields; no outfit matching or appearance-based rule enforcement is claimed.
+
 ## 4. External interface requirements
 
 ### 4.1 User interfaces
@@ -1011,7 +1111,7 @@ No external provider is selected here. Local AI-generated development photograph
 
 ## 5. Non-functional requirements
 
-There are 24 quality/engineering requirements. Implemented statuses below are deliberately limited to existing authentication behavior. App-wide accessibility, future ownership rules, performance targets, and operational guarantees remain work to verify.
+There are 26 quality/engineering requirements. Implemented statuses below are deliberately limited to existing authentication behavior. App-wide accessibility, future ownership rules, performance targets, and operational guarantees remain work to verify.
 
 ### 5.1 Security
 
@@ -1116,6 +1216,16 @@ The frontend shall keep identity and CSRF application state in memory and shall 
 - **Acceptance / verification:** Source review confirms storage/URL/logging absence; a browser refresh restores identity from /me, and sign-out clears application identity. The browser-managed HttpOnly session cookie is the intended exception to client-memory state.
 - **Existing evidence:** [Typed Fetch client][client], [SessionProvider][provider], [Register page][register], [Login page][login]; tests: [Fetch client tests][tClient], [Frontend auth browser tests][tBrowser].
 
+<a id="nfr-priv-004"></a>
+
+#### NFR-PRIV-004 — Appearance data minimization
+
+**Priority:** Must. **Status:** Planned.
+
+Appearance collection shall exclude age, birth date, weight, images, inferred traits, and additional measurements without an approved functional use case. All supported fields shall be optional, clearable, and independently deletable, with no AI/external transmission in Phase 2E.
+
+- **Acceptance / verification:** Inspect DTO/schema/UI/network boundaries; reject unknown fields; test null, deletion, two-account access, auth response exclusion, and log redaction. Future retention/backup/legal policies remain under DEC-014; no legal compliance claim is made.
+
 ### 5.3 Reliability
 
 <a id="nfr-rel-001"></a>
@@ -1200,6 +1310,16 @@ All animated flows shall respect prefers-reduced-motion; meaningful images shall
 - **Acceptance / verification:** Reduced-motion tests suppress the large auth slide; inspect image alternatives and measure contrast. Proposed WCAG 2.2 AA scope and full screen-reader/browser matrix require confirmation.
 - **Existing evidence:** [AuthShell][shell], [Auth motion CSS][motion], [Landing hero][hero], [Styling categories][categories]; tests: [Frontend auth browser tests][tBrowser].
 - **Open decisions:** DEC-017.
+
+<a id="nfr-acc-003"></a>
+
+#### NFR-ACC-003 — Accessible optional appearance controls
+
+**Priority:** Must. **Status:** Planned.
+
+Personal Details & Fit controls shall use native labels, groups, clear optional units/choices, keyboard-accessible actions, visible focus, field-linked validation, and responsive presentation. Missing data must not be presented as a deficiency.
+
+- **Acceptance / verification:** Keyboard save/clear/delete confirmation; invalid-height focus/error association; mobile 360/390 and tablet/desktop overflow checks; five-step progress and review are understandable without motion or color alone. Full assistive-technology/browser conformance remains a separate acceptance decision.
 
 ### 5.6 Usability and visual consistency
 
@@ -1301,6 +1421,9 @@ Before wardrobe and history collections are released, the system shall define an
 - **Open decisions:** DEC-010, DEC-018.
 
 ## 6. Data requirements
+
+**Approved Phase 2E extension (Planned):** one independent optional appearance profile shall reference the account directly. GET/registration creates no record. Full nullable replacement, transactional validation, independent versioned deletion, and concurrency protection are required. A fresh public revision token after recreation must prevent old snapshots matching a newly created record. Styling preferences/identity remain separate. No destructive schema migration or new auth architecture is authorized.
+
 
 ### 6.1 Existing persistent model
 
