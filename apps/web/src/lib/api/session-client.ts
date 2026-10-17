@@ -1,4 +1,5 @@
 import { GROUP_KEYS } from "../profile/types";
+import { APPEARANCE_KEYS } from "../appearance/types";
 
 export class ApiError extends Error {
   constructor(public readonly status: number, message: string,
@@ -57,7 +58,7 @@ export class SessionApiClient {
   }
   async request(path: string, init: RequestInit = {}): Promise<unknown> {
     const url = this.url(path);
-    const write = init.method === "POST" || init.method === "PUT";
+    const write = init.method === "POST" || init.method === "PUT" || init.method === "DELETE";
     let response: Response;
     try {
       const timeout = AbortSignal.timeout(15_000);
@@ -75,10 +76,12 @@ export class SessionApiClient {
     if (!response.ok) {
       const fields: Record<string, string> = {};
       const profile = path.startsWith("/api/profile/");
+      const appearance = path === "/api/profile/appearance";
       if (response.status === 400 && record(body) && record(body.fieldErrors)) {
         for (const [key, message] of Object.entries(body.fieldErrors)) {
           const group = /^preferences\.([A-Za-z]+)(?:\[\d+\](?:\.\w+)?)?$/.exec(key)?.[1];
-          const allowed = profile
+          const detail = /^details\.([A-Za-z]+)$/.exec(key)?.[1];
+          const allowed = appearance ? key === "version" || key === "details" || APPEARANCE_KEYS.some((candidate) => candidate === detail) : profile
             ? ["version", "intent", "lastVisitedStep", "preferences"].includes(key) || GROUP_KEYS.some((candidate) => candidate === group)
             : ["fullName", "email", "password"].includes(key);
           if (allowed && typeof message === "string") fields[group ? `preferences.${group}` : key] = message;
@@ -87,7 +90,7 @@ export class SessionApiClient {
       const csrfFailure = response.status === 403 && record(body) && body.message === "Invalid or missing CSRF token";
       const message = response.status === 400 ? "Please check the highlighted fields."
         : response.status === 401 ? (path === "/api/auth/login" ? "Invalid email or password" : "Authentication is required")
-        : response.status === 409 ? (profile ? "Your preferences changed elsewhere. Reload before saving again" : "Email is already registered")
+        : response.status === 409 ? (appearance ? "Your personal details changed elsewhere. Reload before continuing" : profile ? "Your preferences changed elsewhere. Reload before saving again" : "Email is already registered")
         : csrfFailure ? "Invalid or missing CSRF token"
         : response.status === 403 ? "Access denied" : "Something went wrong. Please try again.";
       throw new ApiError(response.status, message, fields, write && response.status >= 500);
@@ -101,7 +104,7 @@ export class SessionApiClient {
     this.csrf = { headerName: body.headerName, token: body.token };
     return this.csrf;
   }
-  async write(path: string, method: "POST" | "PUT", input: unknown, signal?: AbortSignal,
+  async write(path: string, method: "POST" | "PUT" | "DELETE", input: unknown, signal?: AbortSignal,
       guard?: { check: () => void; verify: () => Promise<void> }): Promise<unknown> {
     for (let attempt = 0; attempt < 2; attempt++) {
       guard?.check();

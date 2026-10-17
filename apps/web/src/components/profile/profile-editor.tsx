@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useSession } from "@/components/auth/session-provider";
 import { Button } from "@/components/ui/button";
 import { ApiError, readableError } from "@/lib/api/auth-client";
@@ -20,9 +20,12 @@ type ProfileEditorProps = {
   loading?: boolean;
   loadError?: string | null;
   onRetry?: () => void;
+  personalDetails?: ReactNode;
+  otherDirty?: boolean;
+  otherPending?: boolean;
 };
 
-export function ProfileEditor({ catalog = INITIAL_CATALOG, initial, onSave, onExit, onReload, loading = false, loadError = null, onRetry }: ProfileEditorProps) {
+export function ProfileEditor({ catalog = INITIAL_CATALOG, initial, onSave, onExit, onReload, loading = false, loadError = null, onRetry, personalDetails, otherDirty = false, otherPending = false }: ProfileEditorProps) {
   const { session } = useSession();
   const [snapshot, setSnapshot] = useState<ProfileSnapshot>(() => initial ?? emptyProfile());
   const [preferences, setPreferences] = useState(() => clonePreferences(initial?.preferences ?? emptyProfile().preferences));
@@ -89,7 +92,7 @@ export function ProfileEditor({ catalog = INITIAL_CATALOG, initial, onSave, onEx
       <section className="mx-auto w-full max-w-3xl" aria-labelledby="profile-heading" aria-busy={pending || loading}>
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <span className="text-sm font-medium text-muted-foreground">Personal Styling</span>
-          <Link href="/dashboard" onClick={(event) => { if (pending || (dirty && !window.confirm("Leave without saving your latest choices?"))) event.preventDefault(); }} className="rounded-sm py-2 text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4">Back to dashboard</Link>
+          <Link href="/dashboard" onClick={(event) => { if (pending || otherPending || ((dirty || otherDirty) && !window.confirm("Leave without saving your latest choices?"))) event.preventDefault(); }} className="rounded-sm py-2 text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4">Back to dashboard</Link>
         </header>
         <h1 id="profile-heading" className="font-heading text-3xl leading-tight font-semibold tracking-tight sm:text-4xl">Your styling profile</h1>
         <p className="mt-3 text-base leading-relaxed text-muted-foreground">Make these preferences your own. Every answer is optional, and you can change it later.</p>
@@ -115,6 +118,7 @@ export function ProfileEditor({ catalog = INITIAL_CATALOG, initial, onSave, onEx
                 </div>
               </form>
             </>}
+        {personalDetails}
       </section>
     </main>
   );

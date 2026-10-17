@@ -7,7 +7,8 @@ test("profile editor reuses choices and displays account identity as read-only",
   await expect(page.getByRole("heading", { name: "Your styling profile", exact: true })).toBeVisible();
   await expect(page.getByText("Example User", { exact: true })).toBeVisible();
   await expect(page.getByText("user@example.com", { exact: true })).toBeVisible();
-  await expect(page.getByRole("textbox")).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "Full name", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "Email address", exact: true })).toHaveCount(0);
   await page.getByLabel("Casual", { exact: true }).check();
   await page.getByRole("group", { name: "Preferred colors (optional)", exact: true }).getByLabel("No preference", { exact: true }).check();
   await page.getByRole("button", { name: "Save preferences", exact: true }).click();

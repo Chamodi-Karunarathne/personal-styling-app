@@ -11,6 +11,7 @@ import { ApiError, readableError, sessionApiClient, StaleSessionError } from "@/
 import { confirmsWrite } from "@/lib/profile/reconciliation";
 import type { PreferenceCatalog, ProfileSnapshot, ProfileWrite } from "@/lib/profile/types";
 import { ProfileEditor } from "./profile-editor";
+import { AppearanceEditor } from "./appearance-editor";
 
 function useOwnedProfile(accountId: number, includeCatalog: boolean) {
   const { restore } = useSession();
@@ -52,6 +53,7 @@ export function ProfileWorkspace({ mode }: { mode: "onboarding" | "editor" }) {
 function OwnedWorkspace({ accountId, mode, reload }: { accountId: number; mode: "onboarding" | "editor"; reload: () => void }) {
   const { client, data, error, operations, restore } = useOwnedProfile(accountId, true);
   const router = useRouter();
+  const [appearanceState, setAppearanceState] = useState({ dirty: false, pending: false });
   async function save(input: ProfileWrite): Promise<ProfileSnapshot> {
     const controller = operations.current!;
     try { return await client.save(input, controller.signal); }
@@ -82,7 +84,7 @@ function OwnedWorkspace({ accountId, mode, reload }: { accountId: number; mode: 
     </section>
   </main>;
   const props = { initial: data.profile, catalog: data.catalog, onSave: save, onReload: reload };
-  return mode === "onboarding" ? <OnboardingFlow {...props} onExit={() => router.push("/dashboard")} /> : <ProfileEditor {...props} />;
+  return mode === "onboarding" ? <OnboardingFlow {...props} onExit={() => router.push("/dashboard")} /> : <ProfileEditor {...props} otherDirty={appearanceState.dirty} otherPending={appearanceState.pending} personalDetails={<AppearanceEditor onStateChange={setAppearanceState} />} />;
 }
 
 export function ProfileEntry() {

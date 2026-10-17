@@ -1,6 +1,8 @@
 import { account } from "./auth-client";
 import { ApiError, record, SessionApiClient, sessionApiClient, StaleSessionError, unexpected, type AccountScope } from "./session-client";
 import { GROUP_KEYS, STEPS, type Preferences, type PreferenceCatalog, type PreferenceGroup, type ProfileSnapshot, type ProfileWrite } from "../profile/types";
+import { parseAppearance } from "./appearance-contract";
+import type { AppearanceSnapshot, AppearanceWrite } from "../appearance/types";
 
 function codes(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((code) => typeof code === "string") && new Set(value).size === value.length;
@@ -53,6 +55,30 @@ export function parseProfile(value: unknown, uncertain = false): ProfileSnapshot
 export class BoundProfileClient {
   constructor(private readonly transport: SessionApiClient, public readonly scope: AccountScope) {}
   isCurrent() { return this.transport.isCurrent(this.scope); }
+  appearance(signal?: AbortSignal): Promise<AppearanceSnapshot> {
+    return this.transport.enqueue(async () => {
+      await this.verifyOwner(signal);
+      const body = await this.transport.request("/api/profile/appearance", { signal });
+      this.transport.assert(this.scope); return parseAppearance(body);
+    }, signal);
+  }
+  saveAppearance(input: AppearanceWrite, signal?: AbortSignal): Promise<AppearanceSnapshot> {
+    const snapshot = structuredClone(input);
+    return this.transport.enqueue(async () => {
+      const body = await this.transport.write("/api/profile/appearance", "PUT", snapshot, signal, {
+        check: () => this.transport.assert(this.scope), verify: () => this.verifyOwner(signal),
+      });
+      this.transport.assert(this.scope); return parseAppearance(body, true);
+    }, signal);
+  }
+  deleteAppearance(version: string | null, signal?: AbortSignal): Promise<void> {
+    return this.transport.enqueue(async () => {
+      await this.transport.write("/api/profile/appearance", "DELETE", { version }, signal, {
+        check: () => this.transport.assert(this.scope), verify: () => this.verifyOwner(signal),
+      });
+      this.transport.assert(this.scope);
+    }, signal);
+  }
   private async verifyOwner(signal?: AbortSignal) {
     this.transport.assert(this.scope);
     const owner = account(await this.transport.request("/api/auth/me", { signal }));
