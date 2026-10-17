@@ -12,6 +12,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -97,6 +99,43 @@ class StylingProfileHttpIntegrationTests {
         assertEquals(completed.get("completedAt"), after.get("completedAt"));
         assertTrue(after.get("version").asLong() > completed.get("version").asLong());
         assertEquals(400, browser.put(after.get("version").asLong(), WriteIntent.SKIP, ProfilePreferences.unanswered()).statusCode());
+    }
+
+    @Test
+    void realAppearanceLifecycleUsesOwnerSessionsAndKeepsStylingAndIdentitySeparate() throws Exception {
+        Browser first = signedIn(); Browser second = signedIn();
+        var style = first.getProfile();
+        var empty = mapper.readTree(first.send("GET", "/api/profile/appearance", null, false).body());
+        assertTrue(empty.get("version").isNull());
+        Map<String, Object> details = new LinkedHashMap<>();
+        List.of("heightCm", "garmentSizeNote", "bodyProportions", "skinTone", "skinUndertone",
+                "paletteSuggestions", "hairColor", "hairTexture", "hairLength", "faceShape")
+                .forEach(key -> details.put(key, null));
+        details.put("heightCm", 172); details.put("paletteSuggestions", false);
+        Map<String, Object> write = new LinkedHashMap<>(); write.put("version", null); write.put("details", details);
+        assertEquals(403, first.send("PUT", "/api/profile/appearance", write, false).statusCode());
+        var created = first.send("PUT", "/api/profile/appearance", write, true);
+        assertEquals(200, created.statusCode());
+        var saved = mapper.readTree(created.body());
+        String version = saved.get("version").asString();
+        assertFalse(saved.get("details").get("paletteSuggestions").asBoolean());
+        assertEquals(172, saved.get("details").get("heightCm").asInt());
+        assertTrue(mapper.readTree(second.send("GET", "/api/profile/appearance?userId=1", null, false).body()).get("version").isNull());
+        assertEquals(204, second.send("DELETE", "/api/profile/appearance", Map.of("version", version), true).statusCode());
+        assertEquals(saved, mapper.readTree(first.send("GET", "/api/profile/appearance", null, false).body()));
+        assertEquals(409, first.send("PUT", "/api/profile/appearance", write, true).statusCode());
+        details.put("heightCm", null); write.put("version", version);
+        var cleared = first.send("PUT", "/api/profile/appearance", write, true);
+        assertEquals(200, cleared.statusCode());
+        var latest = mapper.readTree(cleared.body()); assertTrue(latest.get("details").get("heightCm").isNull());
+        var delete = Map.of("version", latest.get("version").asString());
+        assertEquals(403, first.send("DELETE", "/api/profile/appearance", delete, false).statusCode());
+        assertEquals(204, first.send("DELETE", "/api/profile/appearance", delete, true).statusCode());
+        assertEquals(204, first.send("DELETE", "/api/profile/appearance", delete, true).statusCode());
+        assertTrue(mapper.readTree(first.send("GET", "/api/profile/appearance", null, false).body()).get("version").isNull());
+        assertEquals(style, first.getProfile());
+        var identity = mapper.readTree(first.send("GET", "/api/auth/me", null, false).body());
+        assertEquals(3, identity.size()); assertFalse(identity.has("appearance")); assertFalse(identity.has("passwordHash"));
     }
 
     @Test

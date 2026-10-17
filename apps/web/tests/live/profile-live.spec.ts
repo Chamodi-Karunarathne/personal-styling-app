@@ -1,5 +1,48 @@
 import { expect, test } from "@playwright/test";
 
+test("real appearance onboarding, clearing, deletion, and independent ownership", async ({ page, browser }) => {
+  const api = page.context().request;
+  const email = `appearance-browser-${crypto.randomUUID()}@example.com`;
+  const password = "SyntheticBrowserTest123";
+  const csrf = await (await api.get("http://localhost:8081/api/auth/csrf")).json();
+  expect((await api.post("http://localhost:8081/api/auth/register", { headers: { [csrf.headerName]: csrf.token }, data: { fullName: "Appearance Browser Test", email, password } })).status()).toBe(201);
+  expect((await api.post("http://localhost:8081/api/auth/login", { headers: { [csrf.headerName]: csrf.token }, data: { email, password } })).status()).toBe(200);
+  await page.goto("/onboarding"); await page.getByLabel("Casual", { exact: true }).check();
+  for (let step = 0; step < 3; step++) await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByLabel(/^Height \(cm\)/).fill("172");
+  await page.getByLabel(/^Skin undertone/).selectOption("UNSURE");
+  await page.getByRole("button", { name: "Save and exit", exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard$/); await page.goto("/onboarding");
+  await expect(page.getByLabel(/^Height \(cm\)/)).toHaveValue("172");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("button", { name: "Finish onboarding", exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard$/); await page.goto("/profile");
+  const section = page.getByRole("region", { name: "Personal Details & Fit", exact: true });
+  await expect(section.getByLabel(/^Height \(cm\)/)).toHaveValue("172");
+  await section.getByLabel(/^Height \(cm\)/).fill("");
+  await section.getByRole("button", { name: "Save personal details", exact: true }).click();
+  await expect(section.getByRole("status")).toContainText("have been saved"); await page.reload();
+  await expect(section.getByLabel(/^Height \(cm\)/)).toHaveValue("");
+  const other = await browser.newContext();
+  try {
+    const otherApi = other.request; const token = await (await otherApi.get("http://localhost:8081/api/auth/csrf")).json();
+    const otherEmail = `appearance-other-${crypto.randomUUID()}@example.com`;
+    expect((await otherApi.post("http://localhost:8081/api/auth/register", { headers: { [token.headerName]: token.token }, data: { fullName: "Other Appearance Account", email: otherEmail, password } })).status()).toBe(201);
+    expect((await otherApi.post("http://localhost:8081/api/auth/login", { headers: { [token.headerName]: token.token }, data: { email: otherEmail, password } })).status()).toBe(200);
+    const otherPage = await other.newPage(); await otherPage.goto("/profile");
+    await expect(otherPage.getByLabel(/^Skin undertone/)).toHaveValue("");
+    await expect(otherPage.getByRole("button", { name: "Delete personal details", exact: true })).toBeDisabled();
+  } finally { await other.close(); }
+  page.once("dialog", (dialog) => dialog.accept());
+  await section.getByRole("button", { name: "Delete personal details", exact: true }).click();
+  await expect(section.getByRole("status")).toContainText("Personal details deleted");
+  await page.reload(); await expect(section.getByLabel(/^Skin undertone/)).toHaveValue("");
+  await expect(page.getByLabel("Casual", { exact: true })).toBeChecked();
+  const style = await (await api.get("http://localhost:8081/api/profile/me")).json();
+  expect(style.onboardingStatus).toBe("COMPLETED");
+  expect(await page.evaluate(() => localStorage.length + sessionStorage.length)).toBe(0);
+});
+
 test("real browser registers, restores drafts, completes, edits, and isolates another account", async ({ page, browser }) => {
   const email = `profile-browser-${crypto.randomUUID()}@example.com`;
   const password = "SyntheticBrowserTest123";

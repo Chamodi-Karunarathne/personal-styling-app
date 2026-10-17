@@ -24,6 +24,7 @@ function OwnedAppearanceEditor({ accountId, onStateChange }: { accountId: number
   return <section aria-labelledby="personal-details-heading" className="mt-12 space-y-6 border-t border-border pt-10">
     <h2 id="personal-details-heading" className="font-heading text-2xl font-semibold sm:text-3xl">Personal Details &amp; Fit</h2>
     <p className="text-sm leading-relaxed text-muted-foreground">Entirely optional. These details may help future sizing, color, and accessory suggestions. They are not used to rate appearance or restrict outfits, and are not sent to AI or external services.</p>
+    {resource.snapshot && retryError && <p role="alert" className="text-sm text-destructive">{retryError} Your edits are still available below. Try Reload personal details again when connected.</p>}
     {!resource.snapshot ? resource.loadError || retryError ? <div role="alert" className="space-y-3"><p className="text-sm text-destructive">{retryError ?? resource.loadError}</p><Button type="button" variant="outline" onClick={() => void reload()}>Retry personal details</Button></div>
       : <p role="status" className="text-sm text-muted-foreground">Loading personal details…</p>
       : <AppearanceEditorForm key={revision} initial={resource.snapshot} resource={resource} onReload={reload} onStateChange={onStateChange} />}
