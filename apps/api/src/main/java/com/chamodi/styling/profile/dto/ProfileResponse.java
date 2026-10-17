@@ -11,7 +11,13 @@ public record ProfileResponse(
 		StepCode lastVisitedStep,
 		ProfilePreferences preferences,
 		Instant completedAt,
-		Instant updatedAt) {
+		Instant updatedAt,
+		boolean appearanceStepPending) {
+
+	public ProfileResponse(Long version, OnboardingStatus status, StepCode step, ProfilePreferences preferences,
+			Instant completedAt, Instant updatedAt) {
+		this(version, status, step, preferences, completedAt, updatedAt, false);
+	}
 
 	public static ProfileResponse notStarted() {
 		return new ProfileResponse(null, OnboardingStatus.NOT_STARTED, StepCode.STYLE,

@@ -16,5 +16,6 @@ export function confirmsWrite(saved: ProfileSnapshot, input: ProfileWrite, previ
     : previousStatus === "COMPLETED" ? "COMPLETED" : "IN_PROGRESS";
   return saved.version !== null && (input.version === null || saved.version > input.version)
     && saved.onboardingStatus === status && saved.lastVisitedStep === input.lastVisitedStep
+    && (saved.appearanceStepPending === true) === (input.appearanceStepPending === true)
     && canonical(saved.preferences) === canonical(input.preferences);
 }

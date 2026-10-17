@@ -21,6 +21,7 @@ import com.chamodi.styling.profile.exception.ProfileConflictException;
 import com.chamodi.styling.profile.exception.ProfileValidationException;
 import com.chamodi.styling.profile.model.OnboardingStatus;
 import com.chamodi.styling.profile.model.WriteIntent;
+import com.chamodi.styling.profile.model.StepCode;
 import com.chamodi.styling.profile.repository.StylingProfileRepository;
 
 @Service
@@ -67,7 +68,7 @@ public class StylingProfileService {
 			User owner = users.findById(ownerId).orElseThrow(() -> new IllegalStateException("Authenticated account is unavailable"));
 			profile = new StylingProfile(owner);
 		}
-		profile.apply(status, request.lastVisitedStep(), prepared.answered(), prepared.choices(), Instant.now());
+		profile.apply(status, request.lastVisitedStep(), prepared.answered(), prepared.choices(), Instant.now(), request.appearanceStepPending());
 		try {
 			return response(profiles.saveAndFlush(profile));
 		} catch (OptimisticLockingFailureException exception) {
@@ -97,6 +98,9 @@ public class StylingProfileService {
 		if (request.preferences() == null) {
 			errors.put("preferences", "Preferences are required");
 		}
+		if (request.appearanceStepPending() && (request.lastVisitedStep() != StepCode.REVIEW || request.intent() == WriteIntent.COMPLETE)) {
+			errors.put("appearanceStepPending", "Personal details resume state requires Review and an incomplete save action");
+		}
 		if (!errors.isEmpty()) {
 			throw new ProfileValidationException(errors);
 		}
@@ -104,7 +108,7 @@ public class StylingProfileService {
 
 	private ProfileResponse response(StylingProfile profile) {
 		return new ProfileResponse(profile.getVersion(), profile.getOnboardingStatus(), profile.getLastVisitedStep(),
-				catalog.preferences(profile), profile.getCompletedAt(), profile.getUpdatedAt());
+				catalog.preferences(profile), profile.getCompletedAt(), profile.getUpdatedAt(), profile.isAppearanceStepPending());
 	}
 
 	private boolean isConcurrentCreation(DataIntegrityViolationException exception) {

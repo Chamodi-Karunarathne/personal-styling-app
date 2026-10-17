@@ -50,6 +50,10 @@ public class StylingProfile {
 	@Column(name = "last_visited_step", nullable = false, length = 20)
 	private StepCode lastVisitedStep;
 
+	// Additive resume metadata preserves the original step enum/check constraint and old rows.
+	@Column(name = "appearance_step_pending", nullable = false, columnDefinition = "boolean not null default false")
+	private boolean appearanceStepPending;
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 
@@ -82,6 +86,11 @@ public class StylingProfile {
 	// Called only after the service validates the full snapshot and its state transition.
 	public void apply(OnboardingStatus status, StepCode step, Set<PreferenceCategory> answered,
 			Set<PreferenceSelection> choices, Instant savedAt) {
+		apply(status, step, answered, choices, savedAt, false);
+	}
+
+	public void apply(OnboardingStatus status, StepCode step, Set<PreferenceCategory> answered,
+			Set<PreferenceSelection> choices, Instant savedAt, boolean appearancePending) {
 		// PostgreSQL timestamps use microsecond precision; responses and reloads must agree.
 		savedAt = savedAt.truncatedTo(ChronoUnit.MICROS);
 		if (updatedAt != null && !savedAt.isAfter(updatedAt)) {
@@ -89,6 +98,7 @@ public class StylingProfile {
 		}
 		onboardingStatus = status;
 		lastVisitedStep = step;
+		appearanceStepPending = appearancePending;
 		answeredCategories.clear();
 		answeredCategories.addAll(answered);
 		selections.clear();
@@ -107,6 +117,7 @@ public class StylingProfile {
 	public Long getVersion() { return version; }
 	public OnboardingStatus getOnboardingStatus() { return onboardingStatus; }
 	public StepCode getLastVisitedStep() { return lastVisitedStep; }
+	public boolean isAppearanceStepPending() { return appearanceStepPending; }
 	public Instant getCreatedAt() { return createdAt; }
 	public Instant getUpdatedAt() { return updatedAt; }
 	public Instant getCompletedAt() { return completedAt; }

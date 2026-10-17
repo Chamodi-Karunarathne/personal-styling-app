@@ -71,4 +71,12 @@ class ProfileRequestJsonTests {
         ProfileWriteRequest request = mapper.readValue(EMPTY.replace("\"styles\":null", "\"styles\":[\"CASUAL\"]"), ProfileWriteRequest.class);
         assertFalse(request.toString().contains("CASUAL"));
     }
+
+    @Test
+    void originalFourStepRequestsDefaultNewResumeMetadataToFalse() {
+        assertFalse(mapper.readValue(EMPTY, ProfileWriteRequest.class).appearanceStepPending());
+        ObjectNode body = (ObjectNode) mapper.readTree(EMPTY);
+        body.put("lastVisitedStep", "REVIEW"); body.put("appearanceStepPending", true);
+        assertEquals(true, mapper.readValue(body.toString(), ProfileWriteRequest.class).appearanceStepPending());
+    }
 }

@@ -50,6 +50,14 @@ test("parsers reject incomplete snapshots and catalogs and omit unexpected ident
   const catalog = structuredClone(INITIAL_CATALOG);
   expect(parseCatalog(catalog)).toEqual(INITIAL_CATALOG);
 });
+
+test("old four-step responses remain valid and new resume state stays within stored Review", () => {
+  const legacy = { ...emptyProfile() }; delete legacy.appearanceStepPending;
+  expect(parseProfile(legacy).appearanceStepPending).toBe(false);
+  expect(parseProfile({ ...legacy, lastVisitedStep: "REVIEW", appearanceStepPending: true }).appearanceStepPending).toBe(true);
+  expect(() => parseProfile({ ...legacy, lastVisitedStep: "APPEARANCE" })).toThrow();
+  expect(() => parseProfile({ ...legacy, lastVisitedStep: "STYLE", appearanceStepPending: true })).toThrow();
+});
 test("profile conflicts are distinct from email conflicts and validation fields are restricted", async () => {
   const client = profiles.forAccount(user.id);
   handler = (call) => call.init.method === "PUT" ? Response.json({ message: "private details" }, { status: 409 }) : normal(call);

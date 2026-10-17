@@ -27,6 +27,7 @@ test("real browser registers, restores drafts, completes, edits, and isolates an
   await expect(page.getByRole("heading", { name: "Your everyday life", exact: true })).toBeVisible();
   await page.getByLabel("Public transport", { exact: true }).check();
   await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("button", { name: "Skip this step", exact: true }).click();
   await expect(page.getByText("Covered knees (Required)", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Finish onboarding", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard$/);

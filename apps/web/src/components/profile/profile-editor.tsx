@@ -63,7 +63,8 @@ export function ProfileEditor({ catalog = INITIAL_CATALOG, initial, onSave, onEx
     submitting.current = true;
     setPending(true);
     try {
-      const saved = await onSave({ version: snapshot.version, intent: "SAVE", lastVisitedStep: snapshot.lastVisitedStep, preferences: clonePreferences(preferences) });
+      const saved = await onSave({ version: snapshot.version, intent: "SAVE", lastVisitedStep: snapshot.lastVisitedStep,
+        appearanceStepPending: snapshot.appearanceStepPending === true, preferences: clonePreferences(preferences) });
       if (!mounted.current) return;
       setSnapshot(saved);
       setPreferences(clonePreferences(saved.preferences));

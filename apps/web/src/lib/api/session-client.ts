@@ -82,7 +82,7 @@ export class SessionApiClient {
           const group = /^preferences\.([A-Za-z]+)(?:\[\d+\](?:\.\w+)?)?$/.exec(key)?.[1];
           const detail = /^details\.([A-Za-z]+)$/.exec(key)?.[1];
           const allowed = appearance ? key === "version" || key === "details" || APPEARANCE_KEYS.some((candidate) => candidate === detail) : profile
-            ? ["version", "intent", "lastVisitedStep", "preferences"].includes(key) || GROUP_KEYS.some((candidate) => candidate === group)
+            ? ["version", "intent", "lastVisitedStep", "preferences", "appearanceStepPending"].includes(key) || GROUP_KEYS.some((candidate) => candidate === group)
             : ["fullName", "email", "password"].includes(key);
           if (allowed && typeof message === "string") fields[group ? `preferences.${group}` : key] = message;
         }

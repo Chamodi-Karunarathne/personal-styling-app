@@ -28,7 +28,9 @@ export function parseProfile(value: unknown, uncertain = false): ProfileSnapshot
   if (!record(value) || !record(value.preferences)) return fail();
   if (!(value.version === null || (typeof value.version === "number" && Number.isSafeInteger(value.version) && value.version >= 0))
       || !["NOT_STARTED", "IN_PROGRESS", "SKIPPED", "COMPLETED"].includes(String(value.onboardingStatus))
-      || !STEPS.some((step) => step.code === value.lastVisitedStep)) return fail();
+      || !STEPS.some((step) => step.code !== "APPEARANCE" && step.code === value.lastVisitedStep)
+      || (value.appearanceStepPending !== undefined && typeof value.appearanceStepPending !== "boolean")
+      || (value.appearanceStepPending === true && value.lastVisitedStep !== "REVIEW")) return fail();
   const timestamp = (input: unknown) => input === null || (typeof input === "string" && Number.isFinite(Date.parse(input)));
   if (!timestamp(value.updatedAt) || !timestamp(value.completedAt)
       || (value.onboardingStatus === "NOT_STARTED") !== (value.version === null)
@@ -49,7 +51,7 @@ export function parseProfile(value: unknown, uncertain = false): ProfileSnapshot
   }
   return { version: value.version as number | null, onboardingStatus: value.onboardingStatus as ProfileSnapshot["onboardingStatus"],
     lastVisitedStep: value.lastVisitedStep as ProfileSnapshot["lastVisitedStep"], preferences,
-    completedAt: value.completedAt as string | null, updatedAt: value.updatedAt as string | null };
+    completedAt: value.completedAt as string | null, updatedAt: value.updatedAt as string | null, appearanceStepPending: value.appearanceStepPending === true };
 }
 
 export class BoundProfileClient {

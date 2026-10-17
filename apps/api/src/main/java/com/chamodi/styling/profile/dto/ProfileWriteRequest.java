@@ -14,7 +14,17 @@ public record ProfileWriteRequest(
 		@PositiveOrZero(message = "Version must be nonnegative") Long version,
 		@NotNull(message = "Choose a save action") WriteIntent intent,
 		@NotNull(message = "Choose a valid step") StepCode lastVisitedStep,
-		@NotNull(message = "Preferences are required") @Valid ProfilePreferences preferences) {
+		@NotNull(message = "Preferences are required") @Valid ProfilePreferences preferences,
+		@JsonProperty(defaultValue = "false") Boolean appearanceStepPending) {
+
+	public ProfileWriteRequest {
+		// Jackson 3 rejects absent primitive creator values; retain old request compatibility locally.
+		appearanceStepPending = Boolean.TRUE.equals(appearanceStepPending);
+	}
+
+	public ProfileWriteRequest(Long version, WriteIntent intent, StepCode lastVisitedStep, ProfilePreferences preferences) {
+		this(version, intent, lastVisitedStep, preferences, false);
+	}
 
 	@JsonAnySetter
 	public void rejectUnknownProperty(String ignoredName, Object ignoredValue) {

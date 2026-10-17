@@ -52,6 +52,18 @@ class AppearancePersistenceTests {
     @Test void getNeverCreatesAppearanceOrStylingRows() {
         Long id = account(); assertNull(service.get(id).version()); assertFalse(appearances.existsById(id)); assertFalse(stylingProfiles.existsById(id));
     }
+    @Test void oldReviewAndCompletedRecordsRemainValidWithoutAnAppearanceRow() {
+        Long id = account();
+        var legacy = styling.save(id, new ProfileWriteRequest(null, WriteIntent.SAVE, StepCode.REVIEW, ProfilePreferences.unanswered()));
+        assertFalse(legacy.appearanceStepPending());
+        var personal = styling.save(id, new ProfileWriteRequest(legacy.version(), WriteIntent.SAVE, StepCode.REVIEW, legacy.preferences(), true));
+        assertTrue(styling.get(id).appearanceStepPending()); assertNull(service.get(id).version());
+        assertThrows(ProfileValidationException.class, () -> styling.save(id, new ProfileWriteRequest(personal.version(), WriteIntent.COMPLETE, StepCode.REVIEW, personal.preferences(), true)));
+        var completed = styling.save(id, new ProfileWriteRequest(personal.version(), WriteIntent.COMPLETE, StepCode.REVIEW, personal.preferences()));
+        assertEquals(OnboardingStatus.COMPLETED, completed.onboardingStatus()); assertFalse(completed.appearanceStepPending());
+        assertNull(service.get(id).version());
+        assertEquals(completed, styling.get(id));
+    }
     @Test void savesClearsAndDeletesIndependentlyOfStylingAndAccount() {
         Long id = account();
         var style = styling.save(id, new ProfileWriteRequest(null, WriteIntent.COMPLETE, StepCode.REVIEW, ProfilePreferences.unanswered()));

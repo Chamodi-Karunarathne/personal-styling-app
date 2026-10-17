@@ -26,3 +26,10 @@ test("Skip, Complete, and completed profile edits retain their explicit status s
   expect(confirmsWrite({ ...saved(), onboardingStatus: "SKIPPED" }, { ...input(), intent: "SKIP" }, "IN_PROGRESS")).toBe(true);
   expect(confirmsWrite({ ...saved(), onboardingStatus: "COMPLETED" }, input(), "COMPLETED")).toBe(true);
 });
+
+test("new appearance resume metadata participates in uncertain-write reconciliation", () => {
+  const request = { ...input(), lastVisitedStep: "REVIEW" as const, appearanceStepPending: true };
+  const remote = { ...saved(), lastVisitedStep: "REVIEW" as const, appearanceStepPending: false };
+  expect(confirmsWrite(remote, request, "IN_PROGRESS")).toBe(false);
+  expect(confirmsWrite({ ...remote, appearanceStepPending: true }, request, "IN_PROGRESS")).toBe(true);
+});

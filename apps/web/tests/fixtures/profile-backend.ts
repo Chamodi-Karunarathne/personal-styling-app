@@ -79,6 +79,7 @@ export async function mockProfileBackend(page: Page) {
         const status = input.intent === "COMPLETE" ? "COMPLETED" : input.intent === "SKIP" ? "SKIPPED"
           : state.profile.onboardingStatus === "COMPLETED" ? "COMPLETED" : "IN_PROGRESS";
         state.profile = { version: (state.profile.version ?? -1) + 1, onboardingStatus: status, lastVisitedStep: input.lastVisitedStep,
+          appearanceStepPending: input.appearanceStepPending ?? false,
           preferences: structuredClone(input.preferences), updatedAt: now,
           completedAt: status === "COMPLETED" ? state.profile.completedAt ?? now : null } satisfies ProfileSnapshot;
       }

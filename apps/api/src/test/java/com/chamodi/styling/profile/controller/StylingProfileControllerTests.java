@@ -134,7 +134,8 @@ class StylingProfileControllerTests {
 		when(profiles.get(7L)).thenReturn(ProfileResponse.notStarted());
 		mvc.perform(authenticated(get(PROFILE).param("userId", "8")))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$", aMapWithSize(6)))
+				.andExpect(jsonPath("$", aMapWithSize(7)))
+				.andExpect(jsonPath("$.appearanceStepPending").value(false))
 				.andExpect(jsonPath("$.version").value(nullValue()))
 				.andExpect(jsonPath("$.onboardingStatus").value("NOT_STARTED"))
 				.andExpect(jsonPath("$.lastVisitedStep").value("STYLE"))
@@ -154,7 +155,7 @@ class StylingProfileControllerTests {
 		when(profiles.save(eq(7L), any())).thenReturn(response);
 		mvc.perform(authenticated(withCsrf(put(PROFILE))).contentType(MediaType.APPLICATION_JSON).content(BODY))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$", aMapWithSize(6)))
+				.andExpect(jsonPath("$", aMapWithSize(7)))
 				.andExpect(jsonPath("$.version").value(0))
 				.andExpect(jsonPath("$.onboardingStatus").value("IN_PROGRESS"))
 				.andExpect(jsonPath("$.preferences.styles").value(nullValue()))

@@ -11,6 +11,10 @@ import { INITIAL_CATALOG } from "@/lib/profile/catalog";
 import { STEPS, clonePreferences, emptyPreferences, type PreferenceCatalog, type ProfileSnapshot, type ProfileWrite, type StepCode } from "@/lib/profile/types";
 import { validatePreferences } from "@/lib/profile/validation";
 import { OnboardingProgress } from "./onboarding-progress";
+import { AppearanceFields } from "@/components/profile/appearance-fields";
+import { AppearanceReview } from "@/components/profile/appearance-review";
+import type { useAppearanceResource } from "@/components/profile/use-appearance-resource";
+import { normalizeAppearance, sameAppearance, validateAppearance, type AppearanceDetails } from "@/lib/appearance/types";
 
 type OnboardingFlowProps = {
   catalog?: PreferenceCatalog;
@@ -18,11 +22,14 @@ type OnboardingFlowProps = {
   onSave?: (input: ProfileWrite) => Promise<ProfileSnapshot>;
   onExit?: () => void;
   onReload?: () => void;
+  appearance?: ReturnType<typeof useAppearanceResource>;
 };
 
-export function OnboardingFlow({ catalog = INITIAL_CATALOG, initial, onSave, onExit, onReload }: OnboardingFlowProps) {
+export function OnboardingFlow({ catalog = INITIAL_CATALOG, initial, onSave, onExit, onReload, appearance }: OnboardingFlowProps) {
   const [preferences, setPreferences] = useState(() => initial ? clonePreferences(initial.preferences) : emptyPreferences());
-  const [stepCode, setStepCode] = useState<StepCode>(initial?.lastVisitedStep ?? "STYLE");
+  const [stepCode, setStepCode] = useState<StepCode>(initial?.appearanceStepPending ? "APPEARANCE" : initial?.lastVisitedStep ?? "STYLE");
+  const [appearanceDraft, setAppearanceDraft] = useState<AppearanceDetails | null>(null);
+  const [appearanceErrors, setAppearanceErrors] = useState<Record<string, string>>({});
   const [version, setVersion] = useState(initial?.version ?? null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
@@ -37,7 +44,9 @@ export function OnboardingFlow({ catalog = INITIAL_CATALOG, initial, onSave, onE
   const firstRender = useRef(true);
   const stepIndex = STEPS.findIndex((step) => step.code === stepCode);
   const step = STEPS[stepIndex];
-  const dirty = JSON.stringify(preferences) !== savedPreferences;
+  const personalDetails = appearanceDraft ?? appearance?.snapshot?.details ?? null;
+  const appearanceDirty = appearanceDraft !== null && (!appearance?.snapshot || !sameAppearance(appearanceDraft, appearance.snapshot.details));
+  const dirty = JSON.stringify(preferences) !== savedPreferences || appearanceDirty;
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => {
@@ -56,8 +65,10 @@ export function OnboardingFlow({ catalog = INITIAL_CATALOG, initial, onSave, onE
     setErrors({}); if (!conflict) setError(null); setMessage(null); setStepCode(code);
   }
 
-  async function save(intent: ProfileWrite["intent"], destination: StepCode, exit = false) {
+  async function save(intent: ProfileWrite["intent"], destination: StepCode, exit = false, skipPersonal = false) {
     if (submitting.current || conflict) return;
+    const skipDetails = skipPersonal || intent === "SKIP";
+    if (skipDetails && appearanceDirty && !window.confirm("Skip without saving personal details changes? Previously saved personal details will be kept.")) return;
     const validation = validatePreferences(preferences, catalog);
     setErrors(validation); setError(null); setMessage(null); setConflict(false);
     if (Object.keys(validation).length) {
@@ -66,6 +77,9 @@ export function OnboardingFlow({ catalog = INITIAL_CATALOG, initial, onSave, onE
       if (invalidStep) setStepCode(invalidStep.code);
       return;
     }
+    const personalValidation = appearanceDirty && !skipDetails && appearance?.snapshot && personalDetails ? validateAppearance(personalDetails, appearance.snapshot.options) : {};
+    setAppearanceErrors(personalValidation);
+    if (Object.keys(personalValidation).length) { setError("Please check your personal details."); setStepCode("APPEARANCE"); return; }
     if (!onSave) {
       if (destination !== stepCode && !exit) setStepCode(destination);
       setMessage(exit
@@ -75,9 +89,21 @@ export function OnboardingFlow({ catalog = INITIAL_CATALOG, initial, onSave, onE
     }
     submitting.current = true;
     setPending(true);
+    let personalSaved = false;
+    let stage: "personal" | "onboarding" = "onboarding";
     try {
-      const saved = await onSave({ version, intent, lastVisitedStep: destination, preferences: clonePreferences(preferences) });
+      if (appearanceDirty && !skipDetails) {
+        stage = "personal";
+        if (!appearance?.snapshot || !personalDetails) throw new ApiError(0, "Load personal details before saving them.");
+        await appearance.save({ version: appearance.snapshot.version, details: normalizeAppearance(personalDetails) });
+        if (!mounted.current) return;
+        personalSaved = true; setAppearanceDraft(null);
+      }
+      stage = "onboarding";
+      const saved = await onSave({ version, intent, lastVisitedStep: destination === "APPEARANCE" ? "REVIEW" : destination,
+        appearanceStepPending: destination === "APPEARANCE", preferences: clonePreferences(preferences) });
       if (!mounted.current) return;
+      if (skipDetails) setAppearanceDraft(null);
       setVersion(saved.version);
       setPreferences(clonePreferences(saved.preferences));
       setSavedPreferences(JSON.stringify(saved.preferences));
@@ -85,13 +111,14 @@ export function OnboardingFlow({ catalog = INITIAL_CATALOG, initial, onSave, onE
       else { setStepCode(destination); setMessage("Your progress has been saved."); }
     } catch (failure) {
       if (!mounted.current) return;
+      if (stage === "personal") { setStepCode("APPEARANCE"); if (failure instanceof ApiError) setAppearanceErrors(failure.fieldErrors); }
       if (failure instanceof ApiError) {
         setErrors(failure.fieldErrors);
         setConflict(failure.status === 409 || failure.uncertain || failure instanceof StaleSessionError);
         const invalidStep = STEPS.find((candidate) => candidate.groups.some((key) => failure.fieldErrors[key] || failure.fieldErrors[`preferences.${key}`]));
         if (invalidStep) setStepCode(invalidStep.code);
       }
-      setError(readableError(failure));
+      setError(`${personalSaved ? "Personal details were saved. We couldn't confirm onboarding progress. " : ""}${readableError(failure)}`);
     } finally {
       submitting.current = false;
       if (mounted.current) setPending(false);
@@ -114,7 +141,14 @@ export function OnboardingFlow({ catalog = INITIAL_CATALOG, initial, onSave, onE
         </div>
         <form noValidate onSubmit={(event) => { event.preventDefault(); void save(stepCode === "REVIEW" ? "COMPLETE" : "SAVE", STEPS[Math.min(stepIndex + 1, STEPS.length - 1)].code, stepCode === "REVIEW"); }}>
           {stepCode === "REVIEW"
-            ? <ProfileReview preferences={preferences} catalog={catalog} onEdit={moveTo} disabled={pending} />
+            ? <><ProfileReview preferences={preferences} catalog={catalog} onEdit={moveTo} disabled={pending} /><AppearanceReview details={personalDetails} options={appearance?.snapshot?.options} onEdit={() => moveTo("APPEARANCE")} disabled={pending} /></>
+            : stepCode === "APPEARANCE" ? <div className="space-y-5">
+              <p className="text-sm leading-relaxed text-muted-foreground">No age, weight, birth date, or photos are collected. Nothing is sent to AI or external services. Styling and personal details are saved separately.</p>
+              {appearance?.snapshot && personalDetails ? <AppearanceFields details={personalDetails} options={appearance.snapshot.options} onChange={(value) => { setAppearanceDraft(value); setAppearanceErrors({}); setMessage(null); }} errors={appearanceErrors} disabled={pending} />
+                : appearance?.loadError ? <div role="alert" className="space-y-3"><p className="text-sm text-destructive">{appearance.loadError}</p><Button type="button" variant="outline" onClick={() => { void appearance.reload().catch(() => undefined); }}>Retry personal details</Button></div>
+                : <p role="status" className="text-sm text-muted-foreground">Loading optional personal details… You can skip this step.</p>}
+              <Button type="button" variant="link" disabled={pending || conflict} onClick={() => void save("SAVE", "REVIEW", false, true)} className="min-h-11 px-0">Skip this step</Button>
+            </div>
             : <PreferenceFields preferences={preferences} catalog={catalog} keys={step.groups} onChange={(next) => { setPreferences(next); setErrors({}); setMessage(null); }} errors={errors} disabled={pending} />}
           {error && <div ref={errorSummary} role="alert" tabIndex={-1} className="mt-6 space-y-2 rounded-lg border border-destructive/30 px-4 py-3 text-sm text-destructive outline-none"><p>{error}</p>{conflict && <p>Your changes are still here. Reload the saved profile before making another save.</p>}{conflict && onReload && <Button type="button" variant="outline" onClick={() => { if (window.confirm("Reloading replaces your unsaved choices. Continue?")) onReload(); }}>Reload saved profile</Button>}</div>}
           {message && <p role="status" className="mt-6 text-sm leading-relaxed text-muted-foreground">{message}</p>}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { useSession } from "@/components/auth/session-provider";
 import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { confirmsWrite } from "@/lib/profile/reconciliation";
 import type { PreferenceCatalog, ProfileSnapshot, ProfileWrite } from "@/lib/profile/types";
 import { ProfileEditor } from "./profile-editor";
 import { AppearanceEditor } from "./appearance-editor";
+import { useAppearanceResource } from "./use-appearance-resource";
 
 function useOwnedProfile(accountId: number, includeCatalog: boolean) {
   const { restore } = useSession();
@@ -84,7 +85,12 @@ function OwnedWorkspace({ accountId, mode, reload }: { accountId: number; mode: 
     </section>
   </main>;
   const props = { initial: data.profile, catalog: data.catalog, onSave: save, onReload: reload };
-  return mode === "onboarding" ? <OnboardingFlow {...props} onExit={() => router.push("/dashboard")} /> : <ProfileEditor {...props} otherDirty={appearanceState.dirty} otherPending={appearanceState.pending} personalDetails={<AppearanceEditor onStateChange={setAppearanceState} />} />;
+  return mode === "onboarding" ? <OnboardingWithAppearance {...props} accountId={accountId} onExit={() => router.push("/dashboard")} /> : <ProfileEditor {...props} otherDirty={appearanceState.dirty} otherPending={appearanceState.pending} personalDetails={<AppearanceEditor onStateChange={setAppearanceState} />} />;
+}
+
+function OnboardingWithAppearance({ accountId, ...props }: ComponentProps<typeof OnboardingFlow> & { accountId: number }) {
+  const appearance = useAppearanceResource(accountId);
+  return <OnboardingFlow {...props} appearance={appearance} />;
 }
 
 export function ProfileEntry() {

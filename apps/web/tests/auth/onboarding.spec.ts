@@ -12,6 +12,7 @@ test("optional onboarding persists No preference separately from unanswered and 
   await expect(page.getByRole("heading", { name: "What feels comfortable", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("button", { name: "Skip this step", exact: true }).click();
   await expect(page.locator("dl > div").filter({ has: page.getByText("Clothing styles", { exact: true }) }).locator("dd")).toHaveText("No preference");
   await expect(page.locator("dl > div").filter({ has: page.getByText("Preferred colors", { exact: true }) }).locator("dd")).toHaveText("Unanswered");
   await page.getByRole("button", { name: "Finish onboarding", exact: true }).click();
@@ -20,7 +21,8 @@ test("optional onboarding persists No preference separately from unanswered and 
   expect(backend.profile.onboardingStatus).toBe("COMPLETED");
   expect(backend.profile.preferences.styles).toEqual([]);
   expect(backend.profile.preferences.preferredColors).toBeNull();
-  expect(backend.writes.map((write) => write.intent)).toEqual(["SAVE", "SAVE", "SAVE", "COMPLETE"]);
+  expect(backend.writes.map((write) => write.intent)).toEqual(["SAVE", "SAVE", "SAVE", "SAVE", "COMPLETE"]);
+  expect(backend.appearanceWrites).toHaveLength(0);
 });
 
 test("Back preserves local choices and review allows editing explicit coverage strength", async ({ page }) => {
@@ -36,6 +38,7 @@ test("Back preserves local choices and review allows editing explicit coverage s
   await expect(page.getByLabel("How important is covered shoulders?", { exact: true })).toHaveValue("REQUIRED");
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("button", { name: "Skip this step", exact: true }).click();
   await expect(page.getByText("Covered shoulders (Required)", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Edit clothing styles", exact: true }).click();
   const styles = page.getByRole("group", { name: "Clothing styles (optional)", exact: true });
