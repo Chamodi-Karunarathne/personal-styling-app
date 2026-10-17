@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useSession } from "@/components/auth/session-provider";
 import { Button } from "@/components/ui/button";
 import { ApiError, readableError } from "@/lib/api/auth-client";
@@ -10,6 +10,9 @@ import { INITIAL_CATALOG } from "@/lib/profile/catalog";
 import { GROUP_KEYS, clonePreferences, emptyProfile, type PreferenceCatalog, type ProfileSnapshot, type ProfileWrite } from "@/lib/profile/types";
 import { validatePreferences } from "@/lib/profile/validation";
 import { PreferenceFields } from "./preference-fields";
+import { useAccountDraft } from "./use-account-draft";
+
+type EditorDraft = { pending: boolean; snapshot: ProfileSnapshot; preferences: ProfileSnapshot["preferences"]; errors: Record<string, string>; error: string | null; conflict: boolean };
 
 type ProfileEditorProps = {
   catalog?: PreferenceCatalog;
@@ -26,18 +29,20 @@ type ProfileEditorProps = {
 };
 
 export function ProfileEditor({ catalog = INITIAL_CATALOG, initial, onSave, onExit, onReload, loading = false, loadError = null, onRetry, personalDetails, otherDirty = false, otherPending = false }: ProfileEditorProps) {
-  const { session } = useSession();
-  const [snapshot, setSnapshot] = useState<ProfileSnapshot>(() => initial ?? emptyProfile());
-  const [preferences, setPreferences] = useState(() => clonePreferences(initial?.preferences ?? emptyProfile().preferences));
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [error, setError] = useState<string | null>(null);
+  const { session, drafts } = useSession();
+  const { initial: draft, remember, forget } = useAccountDraft<EditorDraft>("profile.styling");
+  const [snapshot, setSnapshot] = useState<ProfileSnapshot>(() => draft?.snapshot ?? initial ?? emptyProfile());
+  const [preferences, setPreferences] = useState(() => clonePreferences(draft?.preferences ?? initial?.preferences ?? emptyProfile().preferences));
+  const [errors, setErrors] = useState<Record<string, string>>(draft?.errors ?? {});
+  const [error, setError] = useState<string | null>(draft?.pending ? "A preferences save was in progress when you left. Reload before saving again." : draft?.error ?? null);
   const [message, setMessage] = useState<string | null>(null);
-  const [conflict, setConflict] = useState(false);
+  const [conflict, setConflict] = useState(draft?.pending || draft?.conflict || false);
   const [pending, setPending] = useState(false);
   const submitting = useRef(false);
   const mounted = useRef(true);
   const errorSummary = useRef<HTMLDivElement>(null);
   const dirty = JSON.stringify(preferences) !== JSON.stringify(snapshot.preferences);
+  useLayoutEffect(() => { remember(dirty || conflict || pending ? { pending, snapshot, preferences, errors, error, conflict } : null); }, [remember, dirty, pending, conflict, snapshot, preferences, errors, error]);
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => { if (error) errorSummary.current?.focus(); }, [error]);
@@ -66,6 +71,7 @@ export function ProfileEditor({ catalog = INITIAL_CATALOG, initial, onSave, onEx
       const saved = await onSave({ version: snapshot.version, intent: "SAVE", lastVisitedStep: snapshot.lastVisitedStep,
         appearanceStepPending: snapshot.appearanceStepPending === true, preferences: clonePreferences(preferences) });
       if (!mounted.current) return;
+      forget();
       setSnapshot(saved);
       setPreferences(clonePreferences(saved.preferences));
       setMessage("Your styling preferences have been saved.");
@@ -93,7 +99,7 @@ export function ProfileEditor({ catalog = INITIAL_CATALOG, initial, onSave, onEx
       <section className="mx-auto w-full max-w-3xl" aria-labelledby="profile-heading" aria-busy={pending || loading}>
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <span className="text-sm font-medium text-muted-foreground">Personal Styling</span>
-          <Link href="/dashboard" onClick={(event) => { if (pending || otherPending || ((dirty || otherDirty) && !window.confirm("Leave without saving your latest choices?"))) event.preventDefault(); }} className="rounded-sm py-2 text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4">Back to dashboard</Link>
+          <Link href="/dashboard" onClick={(event) => { if (pending || otherPending || ((dirty || otherDirty) && !window.confirm("Leave without saving your latest choices?"))) event.preventDefault(); else if (dirty || otherDirty) { forget(); drafts.remember(session.account?.id ?? null, "profile.appearance", null); } }} className="rounded-sm py-2 text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4">Back to dashboard</Link>
         </header>
         <h1 id="profile-heading" className="font-heading text-3xl leading-tight font-semibold tracking-tight sm:text-4xl">Your styling profile</h1>
         <p className="mt-3 text-base leading-relaxed text-muted-foreground">Make these preferences your own. Every answer is optional, and you can change it later.</p>
@@ -111,7 +117,7 @@ export function ProfileEditor({ catalog = INITIAL_CATALOG, initial, onSave, onEx
               {!onSave && <p className="mb-8 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm leading-relaxed">This is a preview. Choices stay in this tab only; saving to your account is not connected yet.</p>}
               <form noValidate onSubmit={(event) => { event.preventDefault(); void save(); }}>
                 <PreferenceFields preferences={preferences} catalog={catalog} keys={GROUP_KEYS} onChange={(next) => { setPreferences(next); setErrors({}); setMessage(null); }} errors={errors} disabled={pending} />
-                {error && <div ref={errorSummary} tabIndex={-1} role="alert" className="mt-6 space-y-2 rounded-lg border border-destructive/30 px-4 py-3 text-sm text-destructive outline-none"><p>{error}</p>{conflict && <p>Your edits are still here. Reload the saved profile before saving again.</p>}{conflict && onReload && <Button type="button" variant="outline" onClick={() => { if (window.confirm("Reloading replaces your unsaved choices. Continue?")) onReload(); }}>Reload saved profile</Button>}</div>}
+                {error && <div ref={errorSummary} tabIndex={-1} role="alert" className="mt-6 space-y-2 rounded-lg border border-destructive/30 px-4 py-3 text-sm text-destructive outline-none"><p>{error}</p>{conflict && <p>Your edits are still here. Reload the saved profile before saving again.</p>}{conflict && onReload && <Button type="button" variant="outline" onClick={() => { if (window.confirm("Reloading replaces your unsaved choices. Continue?")) { forget(); onReload(); } }}>Reload saved profile</Button>}</div>}
                 {message && <p role="status" className="mt-6 text-sm leading-relaxed text-muted-foreground">{message}</p>}
                 <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
                   <Button type="button" variant="outline" disabled={pending} onClick={cancel} className="h-12 rounded-lg px-6">Cancel</Button>

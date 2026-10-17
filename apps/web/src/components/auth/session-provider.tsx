@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiError, authClient, type Account, type LoginRequest, type RegisterRequest } from "@/lib/api/auth-client";
+import { AccountDrafts } from "@/lib/account-drafts";
 
 type SessionState = {
   status: "loading" | "authenticated" | "unauthenticated" | "error";
@@ -9,6 +10,7 @@ type SessionState = {
   message: string | null;
 };
 type SessionContextValue = {
+  drafts: AccountDrafts;
   session: SessionState;
   notice: string | null;
   clearNotice: () => void;
@@ -21,6 +23,7 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 const anonymous: SessionState = { status: "unauthenticated", account: null, message: null };
 
 export function SessionProvider({ children }: { children: ReactNode }) {
+  const [drafts] = useState(() => new AccountDrafts());
   const [session, setSession] = useState<SessionState>({ status: "loading", account: null, message: null });
   const [notice, setNotice] = useState<string | null>(null);
   const mounted = useRef(true);
@@ -39,6 +42,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const user = await authClient.me(controller.signal);
         if (mounted.current && version.current === currentVersion) {
           hadAccount.current = true;
+          drafts.verify(user.id);
           setSession({ status: "authenticated", account: user, message: null });
         }
       } catch (error) {
@@ -46,6 +50,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (error instanceof ApiError && error.status === 401) {
           if (hadAccount.current) setNotice("Your session has expired. Please sign in again.");
           hadAccount.current = false;
+          drafts.clear();
           setSession(anonymous);
         }
         else setSession((previous) => ({ status: "error", account: previous.account, message: "Unable to verify your session. Please try again." }));
@@ -55,7 +60,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     })();
     restoration.current = { promise, controller };
     return promise;
-  }, []);
+  }, [drafts]);
 
   useEffect(() => {
     mounted.current = true;
@@ -101,6 +106,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const user = await authClient.login(input, signal);
       if (!mounted.current || signal?.aborted) return false;
       hadAccount.current = true;
+      drafts.verify(user.id);
       setSession({ status: "authenticated", account: user, message: null });
       setNotice(null);
       succeeded = true;
@@ -118,6 +124,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       await authClient.logout();
       if (!mounted.current) return false;
       hadAccount.current = false;
+      drafts.clear();
       setSession(anonymous);
       setNotice(null);
       succeeded = true;
@@ -129,7 +136,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <SessionContext.Provider value={{ session, notice, clearNotice: () => setNotice(null), restore, register, login, logout }}>
+    <SessionContext.Provider value={{ drafts, session, notice, clearNotice: () => setNotice(null), restore, register, login, logout }}>
       {children}
     </SessionContext.Provider>
   );

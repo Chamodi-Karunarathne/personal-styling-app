@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PreferenceFields } from "@/components/profile/preference-fields";
 import { ProfileReview } from "@/components/profile/profile-review";
@@ -14,7 +14,10 @@ import { OnboardingProgress } from "./onboarding-progress";
 import { AppearanceFields } from "@/components/profile/appearance-fields";
 import { AppearanceReview } from "@/components/profile/appearance-review";
 import type { useAppearanceResource } from "@/components/profile/use-appearance-resource";
-import { normalizeAppearance, sameAppearance, validateAppearance, type AppearanceDetails } from "@/lib/appearance/types";
+import { normalizeAppearance, sameAppearance, validateAppearance, type AppearanceDetails, type AppearanceSnapshot } from "@/lib/appearance/types";
+import { useAccountDraft } from "@/components/profile/use-account-draft";
+
+type OnboardingDraft = { pending: boolean; preferences: ProfileSnapshot["preferences"]; stepCode: StepCode; appearanceDraft: AppearanceDetails | null; appearanceBaseline: AppearanceSnapshot | null; appearanceErrors: Record<string, string>; version: number | null; errors: Record<string, string>; error: string | null; conflict: boolean; savedPreferences: string };
 
 type OnboardingFlowProps = {
   catalog?: PreferenceCatalog;
@@ -26,17 +29,19 @@ type OnboardingFlowProps = {
 };
 
 export function OnboardingFlow({ catalog = INITIAL_CATALOG, initial, onSave, onExit, onReload, appearance }: OnboardingFlowProps) {
-  const [preferences, setPreferences] = useState(() => initial ? clonePreferences(initial.preferences) : emptyPreferences());
-  const [stepCode, setStepCode] = useState<StepCode>(initial?.appearanceStepPending ? "APPEARANCE" : initial?.lastVisitedStep ?? "STYLE");
-  const [appearanceDraft, setAppearanceDraft] = useState<AppearanceDetails | null>(null);
-  const [appearanceErrors, setAppearanceErrors] = useState<Record<string, string>>({});
-  const [version, setVersion] = useState(initial?.version ?? null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { initial: draft, remember, forget } = useAccountDraft<OnboardingDraft>("onboarding");
+  const [preferences, setPreferences] = useState(() => draft ? clonePreferences(draft.preferences) : initial ? clonePreferences(initial.preferences) : emptyPreferences());
+  const [stepCode, setStepCode] = useState<StepCode>(draft?.stepCode ?? (initial?.appearanceStepPending ? "APPEARANCE" : initial?.lastVisitedStep ?? "STYLE"));
+  const [appearanceDraft, setAppearanceDraft] = useState<AppearanceDetails | null>(draft?.appearanceDraft ?? null);
+  const [appearanceBaseline, setAppearanceBaseline] = useState<AppearanceSnapshot | null>(draft?.appearanceBaseline ?? null);
+  const [appearanceErrors, setAppearanceErrors] = useState<Record<string, string>>(draft?.appearanceErrors ?? {});
+  const [version, setVersion] = useState(draft ? draft.version : initial?.version ?? null);
+  const [errors, setErrors] = useState<Record<string, string>>(draft?.errors ?? {});
   const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [conflict, setConflict] = useState(false);
+  const [error, setError] = useState<string | null>(draft?.pending ? "An onboarding save was in progress when you left. Reload before continuing." : draft?.error ?? null);
+  const [conflict, setConflict] = useState(draft?.pending || draft?.conflict || false);
   const [pending, setPending] = useState(false);
-  const [savedPreferences, setSavedPreferences] = useState(() => JSON.stringify(initial?.preferences ?? emptyPreferences()));
+  const [savedPreferences, setSavedPreferences] = useState(() => draft?.savedPreferences ?? JSON.stringify(initial?.preferences ?? emptyPreferences()));
   const submitting = useRef(false);
   const mounted = useRef(true);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -45,8 +50,10 @@ export function OnboardingFlow({ catalog = INITIAL_CATALOG, initial, onSave, onE
   const stepIndex = STEPS.findIndex((step) => step.code === stepCode);
   const step = STEPS[stepIndex];
   const personalDetails = appearanceDraft ?? appearance?.snapshot?.details ?? null;
-  const appearanceDirty = appearanceDraft !== null && (!appearance?.snapshot || !sameAppearance(appearanceDraft, appearance.snapshot.details));
+  const personalBaseline = appearanceBaseline ?? appearance?.snapshot;
+  const appearanceDirty = appearanceDraft !== null && (!personalBaseline || !sameAppearance(appearanceDraft, personalBaseline.details));
   const dirty = JSON.stringify(preferences) !== savedPreferences || appearanceDirty;
+  useLayoutEffect(() => { remember(dirty || conflict || pending ? { pending, preferences, stepCode, appearanceDraft, appearanceBaseline, appearanceErrors, version, errors, error, conflict, savedPreferences } : null); }, [remember, dirty, pending, conflict, preferences, stepCode, appearanceDraft, appearanceBaseline, appearanceErrors, version, errors, error, savedPreferences]);
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => {
@@ -95,19 +102,19 @@ export function OnboardingFlow({ catalog = INITIAL_CATALOG, initial, onSave, onE
       if (appearanceDirty && !skipDetails) {
         stage = "personal";
         if (!appearance?.snapshot || !personalDetails) throw new ApiError(0, "Load personal details before saving them.");
-        await appearance.save({ version: appearance.snapshot.version, details: normalizeAppearance(personalDetails) });
+        await appearance.save({ version: appearanceBaseline ? appearanceBaseline.version : appearance.snapshot.version, details: normalizeAppearance(personalDetails) });
         if (!mounted.current) return;
-        personalSaved = true; setAppearanceDraft(null);
+        personalSaved = true; setAppearanceDraft(null); setAppearanceBaseline(null);
       }
       stage = "onboarding";
       const saved = await onSave({ version, intent, lastVisitedStep: destination === "APPEARANCE" ? "REVIEW" : destination,
         appearanceStepPending: destination === "APPEARANCE", preferences: clonePreferences(preferences) });
       if (!mounted.current) return;
-      if (skipDetails) setAppearanceDraft(null);
+      if (skipDetails) { setAppearanceDraft(null); setAppearanceBaseline(null); }
       setVersion(saved.version);
       setPreferences(clonePreferences(saved.preferences));
       setSavedPreferences(JSON.stringify(saved.preferences));
-      if (exit) onExit?.();
+      if (exit) { forget(); onExit?.(); }
       else { setStepCode(destination); setMessage("Your progress has been saved."); }
     } catch (failure) {
       if (!mounted.current) return;
@@ -130,7 +137,7 @@ export function OnboardingFlow({ catalog = INITIAL_CATALOG, initial, onSave, onE
       <section className="mx-auto w-full max-w-3xl" aria-labelledby="onboarding-heading" aria-busy={pending}>
         <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <span className="text-sm font-medium text-muted-foreground">Personal Styling</span>
-          <Link href="/dashboard" onClick={(event) => { if (pending || (dirty && !window.confirm("Leave without saving your latest choices?"))) event.preventDefault(); }} className="rounded-sm py-2 text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4">Back to dashboard</Link>
+          <Link href="/dashboard" onClick={(event) => { if (pending || (dirty && !window.confirm("Leave without saving your latest choices?"))) event.preventDefault(); else if (dirty) forget(); }} className="rounded-sm py-2 text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4">Back to dashboard</Link>
         </header>
         <OnboardingProgress current={stepCode} />
         <div className="my-8 sm:my-10">
@@ -144,13 +151,13 @@ export function OnboardingFlow({ catalog = INITIAL_CATALOG, initial, onSave, onE
             ? <><ProfileReview preferences={preferences} catalog={catalog} onEdit={moveTo} disabled={pending} /><AppearanceReview details={personalDetails} options={appearance?.snapshot?.options} onEdit={() => moveTo("APPEARANCE")} disabled={pending} /></>
             : stepCode === "APPEARANCE" ? <div className="space-y-5">
               <p className="text-sm leading-relaxed text-muted-foreground">No age, weight, birth date, or photos are collected. Nothing is sent to AI or external services. Styling and personal details are saved separately.</p>
-              {appearance?.snapshot && personalDetails ? <AppearanceFields details={personalDetails} options={appearance.snapshot.options} onChange={(value) => { setAppearanceDraft(value); setAppearanceErrors({}); setMessage(null); }} errors={appearanceErrors} disabled={pending} />
+              {appearance?.snapshot && personalDetails ? <AppearanceFields details={personalDetails} options={appearance.snapshot.options} onChange={(value) => { setAppearanceBaseline((previous) => previous ?? appearance.snapshot); setAppearanceDraft(value); setAppearanceErrors({}); setMessage(null); }} errors={appearanceErrors} disabled={pending} />
                 : appearance?.loadError ? <div role="alert" className="space-y-3"><p className="text-sm text-destructive">{appearance.loadError}</p><Button type="button" variant="outline" onClick={() => { void appearance.reload().catch(() => undefined); }}>Retry personal details</Button></div>
                 : <p role="status" className="text-sm text-muted-foreground">Loading optional personal details… You can skip this step.</p>}
               <Button type="button" variant="link" disabled={pending || conflict} onClick={() => void save("SAVE", "REVIEW", false, true)} className="min-h-11 px-0">Skip this step</Button>
             </div>
             : <PreferenceFields preferences={preferences} catalog={catalog} keys={step.groups} onChange={(next) => { setPreferences(next); setErrors({}); setMessage(null); }} errors={errors} disabled={pending} />}
-          {error && <div ref={errorSummary} role="alert" tabIndex={-1} className="mt-6 space-y-2 rounded-lg border border-destructive/30 px-4 py-3 text-sm text-destructive outline-none"><p>{error}</p>{conflict && <p>Your changes are still here. Reload the saved profile before making another save.</p>}{conflict && onReload && <Button type="button" variant="outline" onClick={() => { if (window.confirm("Reloading replaces your unsaved choices. Continue?")) onReload(); }}>Reload saved profile</Button>}</div>}
+          {error && <div ref={errorSummary} role="alert" tabIndex={-1} className="mt-6 space-y-2 rounded-lg border border-destructive/30 px-4 py-3 text-sm text-destructive outline-none"><p>{error}</p>{conflict && <p>Your changes are still here. Reload the saved profile before making another save.</p>}{conflict && onReload && <Button type="button" variant="outline" onClick={() => { if (window.confirm("Reloading replaces your unsaved choices. Continue?")) { forget(); onReload(); } }}>Reload saved profile</Button>}</div>}
           {message && <p role="status" className="mt-6 text-sm leading-relaxed text-muted-foreground">{message}</p>}
           <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
             <Button type="button" variant="outline" disabled={pending || stepIndex === 0} onClick={() => moveTo(STEPS[stepIndex - 1].code)} className="h-12 rounded-lg px-6">Back</Button>

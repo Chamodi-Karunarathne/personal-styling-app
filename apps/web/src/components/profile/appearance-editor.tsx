@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSession } from "@/components/auth/session-provider";
 import { Button } from "@/components/ui/button";
 import { ApiError, readableError, sessionApiClient, StaleSessionError } from "@/lib/api/session-client";
 import { normalizeAppearance, sameAppearance, validateAppearance, type AppearanceSnapshot } from "@/lib/appearance/types";
 import { AppearanceFields } from "./appearance-fields";
 import { useAppearanceResource } from "./use-appearance-resource";
+import { useAccountDraft } from "./use-account-draft";
+
+type PersonalDraft = { pending: boolean; snapshot: AppearanceSnapshot; details: AppearanceSnapshot["details"]; errors: Record<string, string>; error: string | null; blocked: boolean };
 
 export function AppearanceEditor({ onStateChange }: { onStateChange: (state: { dirty: boolean; pending: boolean }) => void }) {
   const { session } = useSession();
@@ -14,11 +17,12 @@ export function AppearanceEditor({ onStateChange }: { onStateChange: (state: { d
   return <OwnedAppearanceEditor key={`${session.account.id}:${sessionApiClient.epoch()}`} accountId={session.account.id} onStateChange={onStateChange} />;
 }
 function OwnedAppearanceEditor({ accountId, onStateChange }: { accountId: number; onStateChange: (state: { dirty: boolean; pending: boolean }) => void }) {
+  const { drafts } = useSession();
   const resource = useAppearanceResource(accountId);
   const [revision, setRevision] = useState(0);
   const [retryError, setRetryError] = useState<string | null>(null);
   async function reload() {
-    try { await resource.reload(); setRetryError(null); setRevision((value) => value + 1); }
+    try { await resource.reload(); drafts.remember(accountId, "profile.appearance", null); setRetryError(null); setRevision((value) => value + 1); }
     catch (failure) { setRetryError(readableError(failure)); }
   }
   return <section aria-labelledby="personal-details-heading" className="mt-12 space-y-6 border-t border-border pt-10">
@@ -34,16 +38,18 @@ function AppearanceEditorForm({ initial, resource, onReload, onStateChange }: {
   initial: AppearanceSnapshot; resource: ReturnType<typeof useAppearanceResource>; onReload: () => Promise<void>;
   onStateChange: (state: { dirty: boolean; pending: boolean }) => void;
 }) {
-  const [snapshot, setSnapshot] = useState(initial);
-  const [details, setDetails] = useState(() => structuredClone(initial.details));
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [error, setError] = useState<string | null>(null);
+  const { initial: draft, remember, forget } = useAccountDraft<PersonalDraft>("profile.appearance");
+  const [snapshot, setSnapshot] = useState(draft?.snapshot ?? initial);
+  const [details, setDetails] = useState(() => structuredClone(draft?.details ?? initial.details));
+  const [errors, setErrors] = useState<Record<string, string>>(draft?.errors ?? {});
+  const [error, setError] = useState<string | null>(draft?.pending ? "A personal details write was in progress when you left. Reload before continuing." : draft?.error ?? null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [removing, setRemoving] = useState(false);
-  const [blocked, setBlocked] = useState(false);
+  const [blocked, setBlocked] = useState(draft?.pending || draft?.blocked || false);
   const submitting = useRef(false); const mounted = useRef(true); const summary = useRef<HTMLDivElement>(null);
   const dirty = !sameAppearance(details, snapshot.details);
+  useLayoutEffect(() => { remember(dirty || blocked || pending ? { pending, snapshot, details, errors, error, blocked } : null); }, [remember, dirty, pending, blocked, snapshot, details, errors, error]);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => { onStateChange({ dirty, pending }); }, [dirty, pending, onStateChange]);
   useEffect(() => { if (error) summary.current?.focus(); }, [error]);
@@ -61,6 +67,7 @@ function AppearanceEditorForm({ initial, resource, onReload, onStateChange }: {
     try {
       const saved = deleting ? await resource.remove(snapshot.version) : await resource.save({ version: snapshot.version, details: normalizeAppearance(details) });
       if (!mounted.current) return;
+      forget();
       setSnapshot(saved); setDetails(structuredClone(saved.details));
       setMessage(deleting ? "Personal details deleted. Your styling preferences are unchanged." : "Your personal details have been saved.");
     } catch (failure) {

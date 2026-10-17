@@ -15,7 +15,7 @@ export async function mockProfileBackend(page: Page) {
     failSessionRead: false,
     failWrite: null as null | { status?: number; fieldErrors?: Record<string, string>; loseResponse?: boolean; commit?: boolean },
     failRead: false,
-    before: async (path: string) => { void path; },
+    before: async (path: string, method: string) => { void path; void method; },
   };
   const headers = {
     "Access-Control-Allow-Origin": `http://localhost:${process.env.PLAYWRIGHT_PORT ?? "3000"}`,
@@ -25,7 +25,7 @@ export async function mockProfileBackend(page: Page) {
   await page.route("http://localhost:8080/api/**", async (route: Route) => {
     const request = route.request(); const path = new URL(request.url()).pathname;
     if (request.method() === "OPTIONS") { await route.fulfill({ status: 204, headers }); return; }
-    await state.before(path);
+    await state.before(path, request.method());
     const error = (status: number, message: string, fieldErrors = {}) => route.fulfill({ status, headers,
       json: { timestamp: "2026-10-17T00:00:00Z", status, error: "Request failed", message, path, fieldErrors } });
     if (path === "/api/auth/csrf") {
