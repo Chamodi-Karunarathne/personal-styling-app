@@ -40,7 +40,17 @@ function useOwnedProfile(accountId: number, includeCatalog: boolean) {
     operations.current = controller;
     return () => { controller.abort(); };
   }, []);
-  return { client, data, error, operations, restore };
+  async function reloadProfile(): Promise<ProfileSnapshot> {
+    try {
+      const profile = await client.me(operations.current!.signal);
+      setData((previous) => previous ? { ...previous, profile } : previous);
+      return profile;
+    } catch (failure) {
+      if (failure instanceof StaleSessionError || (failure instanceof ApiError && failure.status === 401)) void restore();
+      throw failure;
+    }
+  }
+  return { client, data, error, operations, restore, reloadProfile };
 }
 
 export function ProfileWorkspace({ mode }: { mode: "onboarding" | "editor" }) {
@@ -52,7 +62,7 @@ export function ProfileWorkspace({ mode }: { mode: "onboarding" | "editor" }) {
 }
 
 function OwnedWorkspace({ accountId, mode, reload }: { accountId: number; mode: "onboarding" | "editor"; reload: () => void }) {
-  const { client, data, error, operations, restore } = useOwnedProfile(accountId, true);
+  const { client, data, error, operations, restore, reloadProfile } = useOwnedProfile(accountId, true);
   const router = useRouter();
   const [appearanceState, setAppearanceState] = useState({ dirty: false, pending: false });
   async function save(input: ProfileWrite): Promise<ProfileSnapshot> {
@@ -84,8 +94,8 @@ function OwnedWorkspace({ accountId, mode, reload }: { accountId: number; mode: 
       <Link href="/dashboard" className="inline-block rounded-sm py-3 text-sm text-primary underline focus-visible:outline-2 focus-visible:outline-offset-4">Back to dashboard</Link>
     </section>
   </main>;
-  const props = { initial: data.profile, catalog: data.catalog, onSave: save, onReload: reload };
-  return mode === "onboarding" ? <OnboardingWithAppearance {...props} accountId={accountId} onExit={() => router.push("/dashboard")} /> : <ProfileEditor {...props} otherDirty={appearanceState.dirty} otherPending={appearanceState.pending} personalDetails={<AppearanceEditor onStateChange={setAppearanceState} />} />;
+  const props = { initial: data.profile, catalog: data.catalog, onSave: save };
+  return mode === "onboarding" ? <OnboardingWithAppearance {...props} onReload={reload} accountId={accountId} onExit={() => router.push("/dashboard")} /> : <ProfileEditor {...props} onReload={reloadProfile} otherDirty={appearanceState.dirty} otherPending={appearanceState.pending} personalDetails={<AppearanceEditor onStateChange={setAppearanceState} />} />;
 }
 
 function OnboardingWithAppearance({ accountId, ...props }: ComponentProps<typeof OnboardingFlow> & { accountId: number }) {

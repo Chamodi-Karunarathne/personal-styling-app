@@ -19,7 +19,7 @@ type ProfileEditorProps = {
   initial?: ProfileSnapshot;
   onSave?: (input: ProfileWrite) => Promise<ProfileSnapshot>;
   onExit?: () => void;
-  onReload?: () => void;
+  onReload?: () => Promise<ProfileSnapshot>;
   loading?: boolean;
   loadError?: string | null;
   onRetry?: () => void;
@@ -94,6 +94,18 @@ export function ProfileEditor({ catalog = INITIAL_CATALOG, initial, onSave, onEx
     onExit?.();
   }
 
+  async function reloadStyling() {
+    if (submitting.current || !onReload || !window.confirm("Reloading replaces unsaved styling preferences only. Continue?")) return;
+    submitting.current = true; setPending(true); setError(null); setMessage(null);
+    try {
+      const saved = await onReload();
+      if (!mounted.current) return;
+      forget(); setSnapshot(saved); setPreferences(clonePreferences(saved.preferences)); setErrors({}); setConflict(false);
+      setMessage("Saved styling preferences reloaded. Personal details are unchanged.");
+    } catch (failure) { if (mounted.current) { setConflict(true); setError(readableError(failure)); } }
+    finally { submitting.current = false; if (mounted.current) setPending(false); }
+  }
+
   return (
     <main className="min-h-screen flex-1 bg-background px-5 py-8 sm:px-8 sm:py-12">
       <section className="mx-auto w-full max-w-3xl" aria-labelledby="profile-heading" aria-busy={pending || loading}>
@@ -117,7 +129,7 @@ export function ProfileEditor({ catalog = INITIAL_CATALOG, initial, onSave, onEx
               {!onSave && <p className="mb-8 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm leading-relaxed">This is a preview. Choices stay in this tab only; saving to your account is not connected yet.</p>}
               <form noValidate onSubmit={(event) => { event.preventDefault(); void save(); }}>
                 <PreferenceFields preferences={preferences} catalog={catalog} keys={GROUP_KEYS} onChange={(next) => { setPreferences(next); setErrors({}); setMessage(null); }} errors={errors} disabled={pending} />
-                {error && <div ref={errorSummary} tabIndex={-1} role="alert" className="mt-6 space-y-2 rounded-lg border border-destructive/30 px-4 py-3 text-sm text-destructive outline-none"><p>{error}</p>{conflict && <p>Your edits are still here. Reload the saved profile before saving again.</p>}{conflict && onReload && <Button type="button" variant="outline" onClick={() => { if (window.confirm("Reloading replaces your unsaved choices. Continue?")) { forget(); onReload(); } }}>Reload saved profile</Button>}</div>}
+                {error && <div ref={errorSummary} tabIndex={-1} role="alert" className="mt-6 space-y-2 rounded-lg border border-destructive/30 px-4 py-3 text-sm text-destructive outline-none"><p>{error}</p>{conflict && <p>Your edits are still here. Reload the saved profile before saving again.</p>}{conflict && onReload && <Button type="button" variant="outline" onClick={() => void reloadStyling()}>Reload saved profile</Button>}</div>}
                 {message && <p role="status" className="mt-6 text-sm leading-relaxed text-muted-foreground">{message}</p>}
                 <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
                   <Button type="button" variant="outline" disabled={pending} onClick={cancel} className="h-12 rounded-lg px-6">Cancel</Button>
