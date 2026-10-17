@@ -77,3 +77,23 @@ test("leaving during a write restores edits with an uncertainty lock instead of 
     expect(backend.writes.length).toBeLessThanOrEqual(1);
   } finally { release(); }
 });
+
+test("confirmed appearance deletion removes cached personal drafts and keeps unsaved styling choices", async ({ page }) => {
+  const backend = await mockProfileBackend(page);
+  backend.profile = { ...emptyProfile(), version: 0, onboardingStatus: "IN_PROGRESS", lastVisitedStep: "REVIEW", appearanceStepPending: true, updatedAt: "2026-10-17T00:00:00Z" };
+  backend.appearance = { ...backend.appearance, version: crypto.randomUUID(), updatedAt: "2026-10-17T00:00:00Z", details: { ...backend.appearance.details, heightCm: 170 } };
+  await page.goto("/dashboard"); await page.getByRole("link", { name: "Resume setup", exact: true }).click();
+  await page.getByLabel(/^Height \(cm\)/).fill("172");
+  for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByLabel("Minimal", { exact: true }).check(); await page.goBack(); await expect(page).toHaveURL(/\/dashboard$/);
+  await page.getByRole("link", { name: "Edit preferences", exact: true }).click();
+  await expect(page.getByLabel(/^Height \(cm\)/)).toHaveValue("170"); page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Delete personal details", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("Personal details deleted");
+  await page.getByRole("link", { name: "Back to dashboard", exact: true }).click();
+  await page.getByRole("link", { name: "Resume setup", exact: true }).click();
+  await expect(page.getByLabel("Minimal", { exact: true })).toBeChecked();
+  for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page.getByLabel(/^Height \(cm\)/)).toHaveValue("");
+  expect(backend.appearance.version).toBeNull(); expect(backend.appearanceWrites).toHaveLength(0);
+});

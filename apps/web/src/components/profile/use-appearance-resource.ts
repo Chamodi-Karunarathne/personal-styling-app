@@ -7,7 +7,7 @@ import { ApiError, readableError, StaleSessionError } from "@/lib/api/session-cl
 import { emptyAppearance, sameAppearance, type AppearanceSnapshot, type AppearanceWrite } from "@/lib/appearance/types";
 
 export function useAppearanceResource(accountId: number) {
-  const { restore } = useSession();
+  const { restore, drafts } = useSession();
   const [client] = useState(() => profileClient.forAccount(accountId));
   const [snapshot, setSnapshot] = useState<AppearanceSnapshot | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -48,18 +48,23 @@ export function useAppearanceResource(accountId: number) {
       throw failure;
     }
   }
+  function acceptRemoval(value: AppearanceSnapshot): AppearanceSnapshot {
+    drafts.remember(accountId, "profile.appearance", null);
+    drafts.update<Record<string, unknown>>(accountId, "onboarding", (draft) => ({ ...draft, appearanceDraft: null, appearanceBaseline: null, appearanceErrors: {} }));
+    setSnapshot(value); return value;
+  }
   async function remove(version: string | null): Promise<AppearanceSnapshot> {
     const signal = operations.current!.signal;
     try {
       await client.deleteAppearance(version, signal);
       const value = { version: null, details: emptyAppearance(), updatedAt: null, options: snapshot!.options };
-      setSnapshot(value); return value;
+      return acceptRemoval(value);
     } catch (failure) {
       handleFailure(failure);
       if (failure instanceof ApiError && failure.uncertain && !signal.aborted) {
         try {
           const value = await client.appearance(signal);
-          if (value.version === null) { setSnapshot(value); return value; }
+          if (value.version === null) return acceptRemoval(value);
         } catch (readFailure) { handleFailure(readFailure); if (readFailure instanceof StaleSessionError || (readFailure instanceof ApiError && readFailure.status === 401)) throw readFailure; }
         throw new ApiError(0, "We couldn't confirm deletion. Reload your personal details before continuing.", {}, true);
       }

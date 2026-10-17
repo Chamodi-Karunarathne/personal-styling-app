@@ -12,4 +12,8 @@ export class AccountDrafts {
     if (owner === null || owner !== this.owner) return;
     if (value === null) this.values.delete(key); else this.values.set(key, structuredClone(value));
   }
+  update<T>(owner: number, key: string, change: (value: T) => T) {
+    const value = this.read<T>(owner, key);
+    if (value !== undefined) this.remember(owner, key, change(value));
+  }
 }
