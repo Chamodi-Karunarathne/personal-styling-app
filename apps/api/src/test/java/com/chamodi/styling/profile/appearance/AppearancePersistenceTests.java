@@ -2,6 +2,7 @@ package com.chamodi.styling.profile.appearance;
 
 import static org.junit.jupiter.api.Assertions.*;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.*;
@@ -21,6 +22,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.chamodi.styling.auth.entity.User;
 import com.chamodi.styling.auth.repository.UserRepository;
 import com.chamodi.styling.profile.appearance.dto.*;
+import com.chamodi.styling.profile.appearance.entity.AppearanceProfile;
 import com.chamodi.styling.profile.appearance.exception.AppearanceConflictException;
 import com.chamodi.styling.profile.appearance.repository.AppearanceProfileRepository;
 import com.chamodi.styling.profile.appearance.service.*;
@@ -29,6 +31,10 @@ import com.chamodi.styling.profile.exception.ProfileValidationException;
 import com.chamodi.styling.profile.model.*;
 import com.chamodi.styling.profile.repository.StylingProfileRepository;
 import com.chamodi.styling.profile.service.*;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.OptimisticLockException;
+import jakarta.persistence.PersistenceException;
+import org.hibernate.exception.ConstraintViolationException;
 
 @DataJpaTest(properties = { "spring.jpa.hibernate.ddl-auto=update", "spring.jpa.show-sql=false" })
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -42,6 +48,7 @@ class AppearancePersistenceTests {
     @Autowired private StylingProfileService styling;
     @Autowired private StylingProfileRepository stylingProfiles;
     @Autowired private PlatformTransactionManager transactions;
+    @Autowired private EntityManagerFactory entityManagers;
     @DynamicPropertySource static void isolated(DynamicPropertyRegistry registry) {
         String url = System.getenv("PROFILE_TEST_DB_URL");
         if (url == null || !url.matches("jdbc:postgresql://127\\.0\\.0\\.1:[0-9]+/phase2_test")) throw new IllegalStateException("Dedicated loopback phase2_test database required");
@@ -104,21 +111,50 @@ class AppearancePersistenceTests {
         var unchanged = service.save(first, request(saved.version(), "172", true));
         assertNotEquals(saved.version(), unchanged.version()); assertTrue(unchanged.updatedAt().isAfter(saved.updatedAt()));
     }
-    @Test void concurrentFirstSavesHaveOneWinnerAndOneSafeConflict() throws Exception { race(account(), null); }
+    @Test void concurrentFirstSavesHaveOneWinnerAndOneSafeConflict() throws Exception { race(account(), null, false); }
     @Test void concurrentSameVersionUpdatesHaveOneWinnerAndOneSafeConflict() throws Exception {
-        Long id = account(); race(id, service.save(id, request(null, "172", true)).version());
+        Long id = account(); race(id, service.save(id, request(null, "172", true)).version(), false);
     }
-    private void race(Long id, UUID version) throws Exception {
-        CountDownLatch ready = new CountDownLatch(2); CountDownLatch go = new CountDownLatch(1);
+    @Test void concurrentDeletionAndUpdateCannotBothCommit() throws Exception {
+        Long id = account(); race(id, service.save(id, request(null, "172", true)).version(), true);
+    }
+    private void race(Long id, UUID version, boolean deleting) throws Exception {
+        CountDownLatch read = new CountDownLatch(2); CountDownLatch write = new CountDownLatch(1);
         try (var executor = Executors.newFixedThreadPool(2)) {
-            Callable<String> call = () -> { ready.countDown(); if (!go.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("Timed out");
-                try { service.save(id, request(version, "172", true)); return "SAVED"; } catch (AppearanceConflictException conflict) { return "CONFLICT"; } };
-            var first = executor.submit(call); var second = executor.submit(call);
-            assertTrue(ready.await(10, TimeUnit.SECONDS)); go.countDown();
+            var first = executor.submit(() -> competingWrite(id, version, deleting, read, write));
+            var second = executor.submit(() -> competingWrite(id, version, false, read, write));
+            try { assertTrue(read.await(10, TimeUnit.SECONDS), "Both transactions must read before either writes"); }
+            finally { write.countDown(); }
             var outcomes = List.of(first.get(20, TimeUnit.SECONDS), second.get(20, TimeUnit.SECONDS));
-            assertEquals(1, outcomes.stream().filter("SAVED"::equals).count()); assertEquals(1, outcomes.stream().filter("CONFLICT"::equals).count());
-            assertNotNull(service.get(id).version());
+            assertEquals(1, outcomes.stream().filter(result -> !result.equals("CONFLICT")).count());
+            assertEquals(1, outcomes.stream().filter("CONFLICT"::equals).count());
+            if (outcomes.contains("DELETED")) assertNull(service.get(id).version()); else assertNotNull(service.get(id).version());
         }
+    }
+    // Exercise real PostgreSQL conflicts, separately from service pre-check/exception-mapping unit tests.
+    private String competingWrite(Long id, UUID version, boolean deleting, CountDownLatch read, CountDownLatch write) throws Exception {
+        var manager = entityManagers.createEntityManager();
+        try {
+            manager.getTransaction().begin();
+            var profile = manager.find(AppearanceProfile.class, id);
+            if (version == null) { assertNull(profile); profile = new AppearanceProfile(manager.getReference(User.class, id)); }
+            else { assertNotNull(profile); assertEquals(version, profile.getRevision()); }
+            read.countDown();
+            if (!write.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("Isolated race barrier timed out");
+            if (deleting) manager.remove(profile);
+            else {
+                profile.apply(request(version, "173", true).details(), Instant.now());
+                if (version == null) manager.persist(profile);
+            }
+            manager.flush(); manager.getTransaction().commit(); return deleting ? "DELETED" : "SAVED";
+        } catch (OptimisticLockException failure) { return "CONFLICT"; }
+        catch (PersistenceException failure) {
+            for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+                if (cause instanceof ConstraintViolationException violation && "23505".equals(violation.getSQLState())
+                        && "appearance_profiles_pkey".equalsIgnoreCase(violation.getConstraintName())) return "CONFLICT";
+            }
+            throw failure;
+        } finally { if (manager.getTransaction().isActive()) manager.getTransaction().rollback(); manager.close(); }
     }
     private Long account() { return users.saveAndFlush(new User("Appearance Test", "appearance-" + UUID.randomUUID() + "@example.com", "unused-test-hash")).getId(); }
     private AppearanceWriteRequest request(UUID version, String height, Boolean palette) { return new AppearanceWriteRequest(version, new AppearanceDetails(new BigDecimal(height), "M", null, "MEDIUM", "UNSURE", palette, "BROWN", "WAVY", "SHORT", "UNSURE")); }

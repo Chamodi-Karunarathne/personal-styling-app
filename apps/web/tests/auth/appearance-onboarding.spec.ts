@@ -23,7 +23,7 @@ test("fifth-step progress saves personal details and restores the personal step 
   await expect(page).toHaveURL(/\/dashboard$/); expect(backend.profile.onboardingStatus).toBe("COMPLETED");
   expect(backend.appearanceWrites).toHaveLength(1); expect(backend.profile.appearanceStepPending).toBe(false);
 });
-test("legacy Review drafts and completed accounts do not require the new optional step", async ({ page }) => {
+test("legacy Review drafts do not require the new optional step", async ({ page }) => {
   const backend = await mockProfileBackend(page); atPersonal(backend); delete backend.profile.appearanceStepPending;
   await page.goto("/onboarding");
   await expect(page.getByRole("heading", { name: "Review your preferences", exact: true })).toBeVisible();
@@ -31,6 +31,21 @@ test("legacy Review drafts and completed accounts do not require the new optiona
   await expect(page).toHaveURL(/\/dashboard$/); await expect(page.getByRole("link", { name: "Resume setup", exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Edit preferences", exact: true })).toBeVisible();
   expect(backend.profile.onboardingStatus).toBe("COMPLETED"); expect(backend.appearanceWrites).toHaveLength(0);
+});
+
+test("an already-completed legacy account stays completed without repeating the personal step", async ({ page }) => {
+  const backend = await mockProfileBackend(page); const completedAt = "2026-10-16T00:00:00Z";
+  backend.profile = { ...emptyProfile(), version: 4, onboardingStatus: "COMPLETED", lastVisitedStep: "REVIEW", completedAt, updatedAt: completedAt };
+  delete backend.profile.appearanceStepPending;
+  await page.goto("/dashboard"); await expect(page.getByRole("link", { name: "Resume setup", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Edit preferences", exact: true })).toBeVisible();
+  await page.goto("/onboarding"); await expect(page.getByRole("heading", { name: "Review your preferences", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Finish onboarding", exact: true }).click(); await expect(page).toHaveURL(/\/dashboard$/);
+  await page.getByRole("link", { name: "Edit preferences", exact: true }).click();
+  await page.getByLabel("Casual", { exact: true }).check(); await page.getByRole("button", { name: "Save preferences", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("have been saved");
+  expect(backend.profile.onboardingStatus).toBe("COMPLETED"); expect(backend.profile.completedAt).toBe(completedAt);
+  expect(backend.appearanceWrites).toHaveLength(0); expect(backend.appearance.version).toBeNull();
 });
 test("skipping personal details preserves saved values and discards only confirmed local changes", async ({ page }) => {
   const backend = await mockProfileBackend(page); atPersonal(backend);
