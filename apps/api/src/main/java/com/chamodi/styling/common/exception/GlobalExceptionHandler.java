@@ -23,6 +23,7 @@ import com.chamodi.styling.auth.exception.EmailAlreadyExistsException;
 import com.chamodi.styling.common.dto.ApiErrorResponse;
 import com.chamodi.styling.profile.exception.ProfileConflictException;
 import com.chamodi.styling.profile.exception.ProfileValidationException;
+import com.chamodi.styling.profile.appearance.exception.AppearanceConflictException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
@@ -45,6 +46,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler(ProfileConflictException.class)
 	public ResponseEntity<Object> handleProfileConflict(ProfileConflictException exception, WebRequest request) {
 		return error(HttpStatus.CONFLICT, "Your preferences changed elsewhere. Reload before saving again", Map.of(), request);
+	}
+
+	@ExceptionHandler(AppearanceConflictException.class)
+	public ResponseEntity<Object> handleAppearanceConflict(AppearanceConflictException exception, WebRequest request) {
+		return error(HttpStatus.CONFLICT, "Your personal details changed elsewhere. Reload before continuing", Map.of(), request);
 	}
 
 	@Override
